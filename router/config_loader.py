@@ -2,11 +2,17 @@
 
 import copy
 import json
+import logging
+import os
 from collections.abc import Mapping
 from pathlib import Path
 from threading import Lock
 from types import MappingProxyType
 from typing import Optional, List
+
+logger = logging.getLogger(__name__)
+
+RESTRICTIVE_PERMISSIONS = 0o600  # Owner read/write only
 
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "router.config.json"
 
@@ -15,6 +21,17 @@ _config_snapshot: Optional[MappingProxyType] = None
 _config_raw: Optional[dict] = None  # mutable source for deep copies
 _config_lock = Lock()
 _active_config_path: Optional[Path] = None
+
+
+def _restrict_permissions(path: Path) -> None:
+    """Best-effort: set file permissions to owner-only read/write (0o600).
+
+    Silently skips on platforms/filesystems where chmod fails (e.g. Windows).
+    """
+    try:
+        os.chmod(path, RESTRICTIVE_PERMISSIONS)
+    except OSError:
+        logger.warning("Failed to set restrictive permissions on %s (may not be supported on this platform)", path)
 
 
 def _get_config_path() -> Path:

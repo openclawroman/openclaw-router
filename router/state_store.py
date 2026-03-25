@@ -1,6 +1,7 @@
 """Persistent state store for Codex usage tracking."""
 
 import json
+import logging
 import os
 import tempfile
 from datetime import datetime, timezone
@@ -9,6 +10,10 @@ from typing import Optional, List
 
 from .models import CodexState
 from .errors import StateError
+
+logger = logging.getLogger(__name__)
+
+RESTRICTIVE_PERMISSIONS = 0o600  # Owner read/write only
 
 
 CONFIG_DIR = Path(__file__).parent.parent / "config"
@@ -19,6 +24,17 @@ WAL_PATH = CONFIG_DIR / "codex_state_wal.jsonl"
 MAX_HISTORY_ENTRIES = 50
 MIN_STATE_DURATION_S = 300  # 5 minutes minimum in a state
 CONSECUTIVE_SUCCESSES_THRESHOLD = 3  # consecutive successes required before recovery to primary
+
+
+def _restrict_permissions(path: Path) -> None:
+    """Best-effort: set file permissions to owner-only read/write (0o600).
+
+    Silently skips on platforms/filesystems where chmod fails (e.g. Windows).
+    """
+    try:
+        os.chmod(path, RESTRICTIVE_PERMISSIONS)
+    except OSError:
+        logger.warning("Failed to set restrictive permissions on %s (may not be supported on this platform)", path)
 
 # All 4-state transitions are valid (subscription ladder)
 VALID_STATE_TRANSITIONS = {
@@ -106,6 +122,7 @@ class StateStore:
             f.write(json.dumps(entry) + "\n")
             f.flush()
             os.fsync(f.fileno())
+        _restrict_permissions(self.wal_path)
 
     def _truncate_wal(self) -> None:
         """Truncate the WAL file."""
@@ -173,6 +190,7 @@ class StateStore:
                     f.flush()
                     os.fsync(f.fileno())
                 os.replace(tmp_path, path)
+                _restrict_permissions(path)
             except Exception:
                 try:
                     os.unlink(tmp_path)
