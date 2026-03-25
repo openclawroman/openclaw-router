@@ -536,6 +536,49 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                     fallback_count += 1
                 if fallback_count >= max_fallbacks:
                     break
+            except Exception as e:
+                # Catch all non-ExecutorError exceptions (RuntimeError, OSError, etc.)
+                from .errors import normalize_error
+                norm_err = normalize_error(e)
+                last_error = norm_err
+                breaker.record_failure(entry.tool, entry.backend, norm_err)
+                exec_latency = int((time.monotonic() - exec_start) * 1000)
+                attempts.append(ExecutorAttempt(
+                    tool=entry.tool,
+                    backend=entry.backend,
+                    model_profile=entry.model_profile,
+                    success=False,
+                    latency_ms=exec_latency,
+                    normalized_error=norm_err,
+                ))
+                result = ExecutorResult(
+                    task_id=task.task_id,
+                    tool=entry.tool,
+                    backend=entry.backend,
+                    model_profile=entry.model_profile,
+                    success=False,
+                    normalized_error=norm_err,
+                    trace_id=trace_id,
+                )
+                error_history.append({
+                    "tool": entry.tool,
+                    "backend": entry.backend,
+                    "model_profile": entry.model_profile,
+                    "error_type": norm_err,
+                    "error_message": _truncate_error_message(str(e)),
+                })
+                if can_fallback(norm_err):
+                    if fallback_from is None:
+                        fallback_from = entry.tool
+                    if is_first_executor:
+                        is_first_executor = False
+                    else:
+                        fallback_count += 1
+                    if fallback_count >= max_fallbacks:
+                        break
+                    continue
+                else:
+                    break
 
         if result is None:
             result = ExecutorResult(
