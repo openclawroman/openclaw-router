@@ -1,185 +1,227 @@
-# Architecture: Dual-Plane OpenClaw Routing System
+# Architecture: 4-State Subscription-Aware Routing System
 
 ## Overview
 
-The OpenClaw routing system uses a **dual-plane architecture** that cleanly separates orchestration (what to do) from execution (how to do it). This document describes the design, state machine, routing contract, and operational details.
+The OpenClaw routing system uses a **4-state subscription-aware architecture** that separates two independent control planes. The primary optimization is **subscription budget management** — use already-paid capacity (Codex, Claude subscriptions) before falling back to raw API usage (OpenRouter).
 
 ---
 
-## Plane 1 — OpenClaw Orchestration
+## Dual Control Planes
 
-OpenClaw is the **control plane**. It owns:
+The routing system operates on two independent planes:
 
-- **Task intake** — receiving and parsing incoming coding requests
-- **Dispatcher** — routing tasks to the external execution plane
-- **Architect** — high-level design decisions and architecture review
-- **Reviewer** — code review and quality gates
-- **Designer** — UI/UX design decisions
-- **Merge gate** — CI/CD integration and merge approval
-- **Memory** — persistent knowledge and context across sessions
-- **Session state** — conversation and workflow state management
+### Plane 1 — Subscription/Budget (Top-Level State)
 
-OpenClaw does **NOT** own coding execution. All coding work is delegated to the ai-code-runner via a JSON stdin/stdout protocol.
-
----
-
-## Plane 2 — External Execution (`ai-code-runner`)
-
-`~/openclaw-router/` is the **data plane**. It owns:
-
-- **Routing state machine** — determines which executor to use based on current state
-- **Executor chain selection** — builds ordered fallback chains per task
-- **Codex CLI adapter** — OpenAI native and OpenRouter backend integration
-- **Claude Code adapter** — Anthropic backend integration
-- **OpenRouter adapter** — dynamic model selection (minimax, kimi, etc.)
-- **Fallback logic** — automatic retry and chain progression on failure
-- **Structured logging** — JSONL event logging for observability
-
----
-
-## File Layout
+Controls *which provider subscription bucket* to draw from. This is the primary routing dimension.
 
 ```
-openclaw-router/
-├── bin/
-│   └── ai-code-runner              # stdin JSON entrypoint (main binary)
-├── router/
-│   ├── __init__.py                 # package exports
-│   ├── models.py                   # TaskMeta, RouteDecision, ExecutorResult, ChainEntry
-│   ├── classifier.py               # task classification logic
-│   ├── policy.py                   # routing chain builder and state resolution
-│   ├── executors.py                # Codex, Claude, OpenRouter adapters
-│   ├── errors.py                   # normalized error types and mapping
-│   ├── state_store.py              # manual + auto state management
-│   ├── logger.py                   # JSONL structured logging
-│   ├── flow_control.py             # multi-phase pipeline orchestration
-│   └── output_format.py            # output format validation
-├── config/
-│   ├── router.config.json          # full config schema (routing, tools, retry)
-│   ├── router.yaml                 # alternate config format
-│   ├── codex_manual_state.json     # user-pinned state override
-│   └── codex_auto_state.json       # system-tracked state (auto-recovered)
-├── runtime/
-│   ├── claude_health.json          # Claude Code health metrics
-│   └── routing.jsonl               # append-only routing event log
-└── tests/
-    ├── test_architecture.py        # architecture validation tests
-    ├── test_schemas.py             # model and config schema tests
-    ├── test_classifier.py          # task classification tests
-    ├── test_codex_executor.py      # Codex executor tests
-    ├── test_claude_executor.py     # Claude executor tests
-    ├── test_openrouter_executor.py # OpenRouter executor tests
-    ├── test_state_store.py         # state management tests
-    ├── test_errors.py              # error normalization tests
-    ├── test_logger.py              # logging tests
-    ├── test_flow_control.py        # pipeline flow tests
-    ├── test_output_format.py       # output format tests
-    ├── test_cost_tracking.py       # cost tracking tests
-    └── test_integration.py         # integration tests
+openai_primary → openai_conservation → claude_backup → openrouter_fallback
 ```
 
-### Module Responsibilities
+- **openai_primary**: Use the Codex/OpenAI subscription aggressively
+- **openai_conservation**: Stay in OpenAI but conserve quota
+- **claude_backup**: Fall back to Claude Code subscription
+- **openrouter_fallback**: Pay-as-you-go via OpenRouter
 
-| Module | Purpose |
-|---|---|
-| `models.py` | Core data types: `TaskMeta` (task description), `RouteDecision` (routing plan), `ExecutorResult` (execution outcome), `ChainEntry` (chain step). Enums for task class, modality, risk, state, executor, backend, model profile. |
-| `classifier.py` | Classifies incoming tasks by type, risk, and modality. Determines specialist routing needs (screenshots → kimi, etc.). |
-| `policy.py` | Builds executor chains based on current state and task classification. Resolves state from manual/auto files. Manages fallback eligibility. |
-| `executors.py` | Adapter layer for each backend: `run_codex()` (OpenAI native), `run_claude()` (Anthropic), `run_openrouter()` (dynamic model selection). Handles subprocess execution, timeout, and result normalization. |
-| `errors.py` | Normalized error taxonomy: `auth_error`, `rate_limited`, `quota_exhausted`, `provider_unavailable`, `provider_timeout`, `transient_network_error`. Maps raw errors to normalized types. |
-| `state_store.py` | Manages routing state via `codex_manual_state.json` (user-pinned) and `codex_auto_state.json` (system-tracked). Supports `normal` and `last10` states. |
-| `logger.py` | Append-only JSONL logging to `runtime/routing.jsonl`. Records routing decisions, executor invocations, results, and errors. |
-| `flow_control.py` | Multi-phase pipeline orchestration for complex tasks requiring sequential execution stages. |
-| `output_format.py` | Validates and normalizes output formats for different task types. |
+### Plane 2 — Task/Capability (Model Within Lane)
+
+Controls *which model within a provider* to use for a given task. This is the secondary dimension.
+
+| Provider | Default | Hard/Expert | Specialist |
+|----------|---------|-------------|------------|
+| OpenAI | gpt-5.4-mini | gpt-5.4 | — |
+| Claude | claude-sonnet-4.6 | claude-opus-4.6 | — |
+| OpenRouter | minimax | mimo | kimi (visual) |
+
+The two planes compose: subscription state determines *which lane to prefer*, task capability determines *which model within that lane*.
 
 ---
 
 ## State Machine
 
-The router operates in one of two states, controlling which executor chain is used.
-
 ### States
 
-| State | Description |
-|---|---|
-| `normal` | Default state. Uses full 3-step chain with Codex primary. |
-| `last10` | Fallback state. Skips Codex primary, starts with Claude. |
+| State | Goal | Primary Chain |
+|-------|------|---------------|
+| `openai_primary` | Maximize Codex subscription | Codex → Claude → OpenRouter |
+| `openai_conservation` | Conserve OpenAI usage | Codex → OpenRouter → Claude |
+| `claude_backup` | Use Claude subscription | Claude → OpenRouter |
+| `openrouter_fallback` | Last resort | OpenRouter only |
+
+### State Diagram
+
+```
+openai_primary
+    ↓ (budget pressure: approaching weekly limit, rate warnings, manual switch)
+openai_conservation
+    ↓ (OpenAI exhausted, repeated rate_limited/quota_exhausted)
+claude_backup
+    ↓ (Claude unavailable, unauthed, disabled)
+openrouter_fallback
+```
+
+### State Details
+
+#### openai_primary (default)
+
+- **Goal:** Maximize Codex subscription usage
+- **Chain:** `codex_cli:openai_native` → `claude_code:anthropic` → `codex_cli:openrouter`
+- **Model selection:** gpt-5.4 for critical/debug/architecture tasks, gpt-5.4-mini for everything else
+- **When to use:** Default state, healthy OpenAI subscription
+
+#### openai_conservation
+
+- **Goal:** Stay in OpenAI lane but conserve subscription quota
+- **Chain:** `codex_cli:openai_native` → `codex_cli:openrouter` → `claude_code:anthropic`
+- **Model selection:** gpt-5.4-mini for almost everything, gpt-5.4 only for planner/final-review/high-risk
+- **When to use:** Approaching weekly quota limit, rate pressure signals
+
+#### claude_backup
+
+- **Goal:** Use Claude Code subscription before paying OpenRouter
+- **Chain:** `claude_code:anthropic` → `codex_cli:openrouter`
+- **Model selection:** claude-sonnet-4.6 by default, claude-opus-4.6 for hardest cases
+- **When to use:** OpenAI exhausted, repeated rate_limited/quota_exhausted
+
+#### openrouter_fallback
+
+- **Goal:** Last resort paid usage
+- **Chain:** `codex_cli:openrouter` only
+- **Model selection:** minimax default, mimo for hardest tasks, kimi for visual/multimodal
+- **When to use:** Claude unavailable, unauthed, or disabled
 
 ### State Transitions
 
-```
-         ┌─────────────┐
-         │   normal     │
-         │ (default)    │
-         └──────┬───────┘
-                │ codex_cli failures (last 10 tasks)
-                ▼
-         ┌─────────────┐
-         │   last10     │
-         │ (fallback)   │
-         └──────┬───────┘
-                │ codex_cli recovery detected
-                ▼
-         ┌─────────────┐
-         │   normal     │
-         └─────────────┘
-```
-
-- **normal → last10**: Triggered when `codex_cli` fails on recent tasks (tracked in auto state)
-- **last10 → normal**: Triggered when `codex_cli` recovers and succeeds
-- **Manual override**: User can pin state via `codex_manual_state.json`
-
-### Executor Chains by State
-
-**Normal state** (3-step chain):
-```
-1. codex_cli + openai_native    (primary)
-2. claude_code + anthropic      (secondary)
-3. codex_cli + openrouter       (fallback)
-```
-
-**last10 state** (2-step chain):
-```
-1. claude_code + anthropic      (primary)
-2. codex_cli + openrouter       (fallback)
-```
+| From | To | Trigger |
+|------|----|---------|
+| openai_primary | openai_conservation | Manual switch, approaching quota, rate pressure |
+| openai_conservation | claude_backup | OpenAI exhausted, repeated rate_limited/quota_exhausted |
+| claude_backup | openrouter_fallback | Claude unavailable, unauthed, or disabled |
+| Any | Any | Hard failure override (auth error, provider outage) |
 
 ---
 
-## Supported Tool Backends
+## Model Routing Within Each State
 
-### 1. codex_cli + openai_native
-- **Role**: Primary executor in normal state
-- **Model**: `o3`
-- **Backend**: OpenAI native API
-- **Use case**: Standard implementation, refactor, bugfix, debug tasks
+### OpenAI Lane
 
-### 2. claude_code + anthropic
-- **Role**: Secondary executor in normal state, primary in last10
-- **Provider**: Anthropic
-- **Use case**: Complex reasoning, code review, architecture-sensitive tasks
+- **gpt-5.4**: Used for `risk=critical`, `task_class=debug`, `task_class=repo_architecture_change`, planner, final-review
+- **gpt-5.4-mini**: Everything else — code search, reading, docs, simple fixes, standard implementation
+- In `openai_conservation`, gpt-5.4 usage is restricted to highest-priority tasks only
 
-### 3. codex_cli + openrouter + minimax
-- **Role**: Default open-source lane (fallback in both states)
-- **Model**: Minimax via OpenRouter
-- **Use case**: General fallback when primary/secondary fail
+### Claude Lane
 
-### 4. codex_cli + openrouter + kimi
-- **Role**: Specialist executor
-- **Model**: Kimi via OpenRouter
-- **Use case**: Screenshots, multimodal tasks, swarm coordination
-- **Triggered by**: `TaskClass.UI_FROM_SCREENSHOT`, `TaskClass.MULTIMODAL_CODE_TASK`, `TaskClass.SWARM_CODE_TASK`, or `has_screenshots=True`
+- **claude-sonnet-4.6**: Default Claude executor — good quality, reasonable cost
+- **claude-opus-4.6**: Reserved for hardest cases — complex architecture, multi-file refactors, critical decisions
 
-### OpenRouter Dynamic Model Selection
+### OpenRouter Lane
 
-When routing through `codex_cli + openrouter`, the model is selected dynamically:
+- **minimax** (`minimax/minimax-m2.7`): Default fallback — broad compatibility, low cost
+- **mimo** (`xiaomi/mimo-v2-pro`): Hardest tasks, 1M context window, orchestrator brain in `openrouter_fallback`
+- **kimi** (`moonshotai/kimi-k2.5`): Visual/multimodal specialist — screenshots, image analysis
 
-- **Default**: `minimax` (open-source, cost-effective)
-- **Specialist rules** (in `router.config.json`):
-  - `ui_from_screenshot` → `kimi`
-  - `multimodal_code_task` → `kimi`
-  - `swarm_code_task` → `kimi`
-  - `has_screenshots` → `kimi`
+---
+
+## Budget Heuristics
+
+### Manual Override (Primary Control)
+
+The user can manually switch states at any time via:
+
+```bash
+echo '{"state": "openai_conservation"}' > config/codex_manual_state.json
+```
+
+Manual state takes precedence over all automatic signals. It persists across restarts until cleared.
+
+### Signal-Based Transitions
+
+The router monitors execution results for budget-related signals:
+
+- **rate_limited**: Provider returned 429 or rate limit error
+- **quota_exhausted**: Provider returned 402 or quota exceeded error
+- **auth_error**: Authentication failure (may indicate subscription issue)
+
+When these signals accumulate, the router can auto-transition to a more conservative state.
+
+### Local Soft Counting
+
+The router maintains local counters for rough budget tracking:
+
+- Task count per provider (rolling window)
+- Rough token usage estimates
+- Time-since-last-success tracking
+
+These are **soft** signals — they inform transitions but don't trigger them alone. Hard signals (rate_limited, quota_exhausted) are the primary triggers.
+
+### Sticky State
+
+State transitions are **sticky** — the router doesn't bounce back to a higher tier after a single success. To return to `openai_primary` from `openai_conservation`:
+
+1. Manual override, OR
+2. Sustained success over a cooldown period (configurable)
+
+This prevents rapid state oscillation during partial outages.
+
+---
+
+## Fallback Edges
+
+Failures during task execution are **secondary overrides**, not the main routing spine:
+
+1. Execute the first entry in the chain
+2. If **success** → return result
+3. If **fallback-eligible error** → try next chain entry
+4. If **non-eligible error** → return immediately (no fallback)
+5. If all chain entries exhausted → return failure
+
+### Fallback-Eligible Errors
+
+| Error | Description |
+|-------|-------------|
+| `auth_error` | Authentication or credential failure |
+| `rate_limited` | Provider rate limit hit |
+| `quota_exhausted` | API quota or billing exhausted |
+| `provider_unavailable` | Provider service down |
+| `provider_timeout` | Provider response timeout |
+| `transient_network_error` | Temporary network failure |
+
+### Non-Eligible Errors (Stop Immediately)
+
+| Error | Description |
+|-------|-------------|
+| `invalid_payload` | Malformed task JSON |
+| `missing_repo_path` | Required repo path not provided |
+| `permission_denied_local` | Local file permission error |
+| `git_conflict` | Git merge/rebase conflict |
+| `toolchain_error` | Missing compiler, linter, or toolchain |
+| `template_render_error` | Code template rendering failure |
+| `unsupported_task` | Task type not supported by executor |
+
+---
+
+## Health Tracking
+
+### Claude Health
+
+Claude Code availability is tracked in `runtime/claude_health.json`:
+
+- Consecutive success/failure counts
+- Average latency
+- Last error type
+- Last successful execution timestamp
+
+When Claude health degrades, the router can auto-transition from `claude_backup` to `openrouter_fallback`.
+
+### OpenAI Budget Signals
+
+OpenAI usage is tracked via:
+
+- Task count per state (rolling window)
+- Rate limit hit frequency
+- Quota exhaustion signals
+
+These inform transitions from `openai_primary` to `openai_conservation` and beyond.
 
 ---
 
@@ -187,116 +229,57 @@ When routing through `codex_cli + openrouter`, the model is selected dynamically
 
 ### Input: OpenClaw → ai-code-runner
 
-The ai-code-runner receives a JSON object via stdin:
-
-```json
-{
-  "task_meta": {
-    "task_id": "task_001",
-    "agent": "coder",
-    "task_class": "implementation",
-    "risk": "medium",
-    "modality": "text",
-    "requires_repo_write": true,
-    "requires_multimodal": false,
-    "has_screenshots": false,
-    "swarm": false,
-    "repo_path": "/path/to/repo",
-    "cwd": "/path/to/repo",
-    "summary": "Add login endpoint"
-  },
-  "prompt": "Implement a POST /login endpoint...",
-  "context": {
-    "files": ["app.py", "routes.py"],
-    "recent_changes": "..."
-  }
-}
-```
+The ai-code-runner receives a JSON object via stdin containing `task_meta` with fields: `task_id`, `agent`, `task_class`, `risk`, `modality`, `requires_repo_write`, `requires_multimodal`, `has_screenshots`, `swarm`, `repo_path`, `cwd`, `summary`.
 
 ### Output: ai-code-runner → OpenClaw
 
-The ai-code-runner returns an `ExecutorResult` via stdout:
-
-```json
-{
-  "task_id": "task_001",
-  "tool": "codex_cli",
-  "backend": "openai_native",
-  "model_profile": "codex_primary",
-  "success": true,
-  "normalized_error": null,
-  "exit_code": 0,
-  "latency_ms": 12340,
-  "request_id": "req_abc123",
-  "cost_estimate_usd": 0.045,
-  "artifacts": ["app.py", "tests/test_login.py"],
-  "stdout_ref": "runtime/outputs/task_001_stdout.txt",
-  "stderr_ref": null,
-  "final_summary": "Added POST /login endpoint with JWT auth, unit tests included."
-}
-```
+The ai-code-runner returns an `ExecutorResult` via stdout with fields: `task_id`, `tool`, `backend`, `model_profile`, `success`, `normalized_error`, `exit_code`, `latency_ms`, `request_id`, `cost_estimate_usd`, `artifacts`, `stdout_ref`, `stderr_ref`, `final_summary`.
 
 ### Key Contract Rules
 
 - `RouteDecision` (routing plan) and `ExecutorResult` (execution outcome) are **separate types** sharing only `task_id`
-- `RouteDecision` contains: `task_id`, `state`, `chain`, `reason`, `attempted_fallback`, `fallback_from`
-- `ExecutorResult` contains: `task_id`, `tool`, `backend`, `model_profile`, `success`, `normalized_error`, `exit_code`, `latency_ms`, `request_id`, `cost_estimate_usd`, `artifacts`, `stdout_ref`, `stderr_ref`, `final_summary`
 - No execution-time fields leak into `RouteDecision`
 - No routing fields leak into `ExecutorResult`
 
 ---
 
-## Error Handling and Fallback Chain
+## Supported Tool Backends
 
-### Normalized Error Types
+### 1. codex_cli + openai_native (Backend: OpenAI)
+- **Role**: Primary executor in openai_primary and openai_conservation
+- **Models**: gpt-5.4 (heavy), gpt-5.4-mini (light)
+- **Backend**: OpenAI native API via Codex CLI
 
-All executor errors are mapped to normalized types:
+### 2. claude_code + anthropic (Backend: Anthropic)
+- **Role**: Secondary in openai_primary, primary in claude_backup
+- **Models**: claude-sonnet-4.6 (default), claude-opus-4.6 (hard)
+- **Backend**: Anthropic API via Claude Code
 
-| Error Type | Description |
-|---|---|
-| `auth_error` | Invalid or expired API credentials |
-| `rate_limited` | Provider rate limit hit |
-| `quota_exhausted` | API quota or budget exceeded |
-| `provider_unavailable` | Provider service down |
-| `provider_timeout` | Provider did not respond in time |
-| `transient_network_error` | Temporary network failure |
+### 3. codex_cli + openrouter (Backend: OpenRouter)
+- **Role**: Fallback in all states, only executor in openrouter_fallback
+- **Models**: minimax (default), mimo (hard/orchestrator), kimi (visual)
+- **Backend**: OpenRouter API
 
-### Fallback Logic
+### Migration Note
 
-1. Execute the first entry in the chain
-2. If **success** → return `ExecutorResult` with `success=true`
-3. If **failure** with eligible error → try next chain entry
-4. If **failure** with non-eligible error → return immediately (no fallback)
-5. If all chain entries exhausted → return `ExecutorResult` with `success=false`
-
-### Retry Configuration
-
-```json
-{
-  "max_retries": 2,
-  "eligible_errors": [
-    "auth_error",
-    "rate_limited",
-    "quota_exhausted",
-    "provider_unavailable",
-    "provider_timeout",
-    "transient_network_error"
-  ]
-}
-```
+The system previously used 2 states (`normal` and `last10`) driven by failure history. The new 4-state architecture (`openai_primary`, `openai_conservation`, `claude_backup`, `openrouter_fallback`) is driven by subscription budget management. The `normal` state mapped to `openai_primary` and `last10` mapped to a simplified `claude_backup` pattern.
 
 ---
 
-## Health Tracking
+## File Layout
 
-Claude Code health is tracked in `runtime/claude_health.json`:
-
-- Consecutive success/failure counts
-- Average latency
-- Last error type
-- Last successful execution timestamp
-
-This data informs automatic state transitions (normal ↔ last10).
+| Module | Purpose |
+|--------|---------|
+| `models.py` | Core data types: `TaskMeta`, `RouteDecision`, `ExecutorResult`, `ChainEntry`. Enums for task class, modality, risk, state, executor, backend, model profile. |
+| `classifier.py` | Classifies incoming tasks by type, risk, and modality. Determines specialist routing needs (screenshots → kimi, etc.). |
+| `policy.py` | Routing policy — 4-state chain builders, model selection per lane. Resolves state from manual/auto files. |
+| `executors.py` | Adapter layer for each backend: `run_codex()`, `run_claude()`, `run_openrouter()`. Handles subprocess execution, timeout, and result normalization. |
+| `errors.py` | Normalized error taxonomy and fallback eligibility mapping. |
+| `state_store.py` | Persistent state store — manual/auto layers, budget signal tracking. Manages `codex_manual_state.json` and `codex_auto_state.json`. |
+| `logger.py` | Append-only JSONL logging to `runtime/routing.jsonl`. |
+| `config_loader.py` | `get_model()` — config-driven model strings from `router.config.json`. |
+| `flow_control.py` | Multi-phase pipeline orchestration for complex tasks. |
+| `output_format.py` | Output format validation and normalization. |
 
 ---
 
@@ -315,9 +298,10 @@ Each log entry includes a timestamp and request ID for correlation.
 
 ## Design Principles
 
-1. **Separation of concerns**: OpenClaw orchestrates, ai-code-runner executes
-2. **Typed contracts**: `RouteDecision` and `ExecutorResult` are distinct types with no field leakage
-3. **Graceful degradation**: Multi-step fallback chains with eligibility filtering
-4. **Observability**: Structured JSONL logging for every routing decision
-5. **State resilience**: Manual overrides survive restarts; auto state recovers from failures
-6. **Dynamic model selection**: OpenRouter picks the right model based on task characteristics
+1. **Subscription-first**: Use paid subscriptions before raw API spend
+2. **Separation of concerns**: OpenClaw orchestrates, ai-code-runner executes
+3. **Typed contracts**: `RouteDecision` and `ExecutorResult` are distinct types
+4. **Graceful degradation**: Multi-step fallback chains with eligibility filtering
+5. **Observability**: Structured JSONL logging for every routing decision
+6. **State resilience**: Manual overrides survive restarts; auto state recovers from failures
+7. **Dynamic model selection**: Right model for each task within each lane
