@@ -11,7 +11,19 @@ from router.models import (
     TaskMeta, TaskClass, TaskRisk, TaskModality, CodexState,
     ChainEntry, ExecutorResult, RouteDecision,
 )
-from router.policy import route_task, build_chain, choose_openrouter_profile
+from router.policy import route_task, build_chain, choose_openrouter_profile, reset_breaker
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Fixture: reset circuit breaker between tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(autouse=True)
+def _reset_breaker():
+    """Reset circuit breaker singleton before each test."""
+    reset_breaker()
+    yield
+    reset_breaker()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
