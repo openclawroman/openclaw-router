@@ -244,7 +244,6 @@ class StateStore:
     # -------------------------------------------------------------------------
 
     def get_manual_state(self) -> Optional[CodexState]:
-    def get_manual_state(self) -> Optional[CodexState]:
         """Get the manually-set Codex state. Returns None if manual is not active or file missing.
 
         Uses in-memory cache to avoid repeated file reads.
@@ -282,7 +281,6 @@ class StateStore:
     # Auto state (computed, lower precedence than manual)
     # -------------------------------------------------------------------------
 
-    def get_auto_state(self) -> Optional[CodexState]:
     def get_auto_state(self) -> Optional[CodexState]:
         """Get the auto-computed Codex state. Returns None if not set or file missing.
 
