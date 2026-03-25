@@ -17,8 +17,21 @@ from .policy import route_task
 from .state_store import StateStore
 from .logger import RoutingLogger
 from .classifier import Classifier, classify_from_dict
-from .errors import RouterError, ExecutorError, StateError, ConfigurationError
-from .executors import run_codex, run_claude, run_openrouter
+from .errors import (
+    RouterError,
+    ExecutorError,
+    StateError,
+    ConfigurationError,
+    normalize_error,
+    NORMALIZED_ERROR_TYPES,
+)
+from .executors import (
+    run_codex,
+    run_claude,
+    run_openrouter,
+    run_codex_openrouter_minimax,
+    run_codex_openrouter_kimi,
+)
 
 __all__ = [
     # models
@@ -47,8 +60,12 @@ __all__ = [
     "ExecutorError",
     "StateError",
     "ConfigurationError",
+    "normalize_error",
+    "NORMALIZED_ERROR_TYPES",
     # executors
     "run_codex",
     "run_claude",
     "run_openrouter",
+    "run_codex_openrouter_minimax",
+    "run_codex_openrouter_kimi",
 ]
