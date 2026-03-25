@@ -10,6 +10,8 @@ from threading import Lock
 from types import MappingProxyType
 from typing import Optional, List
 
+from .model_registry import validate_config_models, check_model_deprecation
+
 logger = logging.getLogger(__name__)
 
 RESTRICTIVE_PERMISSIONS = 0o600  # Owner read/write only
@@ -99,6 +101,11 @@ def load_config(config_path: Optional[Path] = None) -> dict:
         except ImportError:
             pass
 
+    # Check for deprecated model warnings
+    dep_warnings = validate_config_models(config)
+    for w in dep_warnings:
+        logger.warning(w)
+
     # Cache: atomic swap under lock
     with _config_lock:
         _config_raw = copy.deepcopy(config)
@@ -184,3 +191,12 @@ def get_reliability_config() -> dict:
         "max_retries": reliability.get("max_retries", 2),
         "max_fallbacks": reliability.get("max_fallbacks", 3),
     }
+
+
+def get_model_with_deprecation_check(profile: str) -> str:
+    """Get model string for a profile, warning if model is deprecated."""
+    model = get_model(profile)
+    warning = check_model_deprecation(model)
+    if warning:
+        logger.warning("[profile=%s] %s", profile, warning)
+    return model
