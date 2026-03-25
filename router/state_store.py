@@ -15,6 +15,7 @@ CONFIG_DIR = Path(__file__).parent.parent / "config"
 MANUAL_STATE_PATH = CONFIG_DIR / "codex_manual_state.json"
 AUTO_STATE_PATH = CONFIG_DIR / "codex_auto_state.json"
 STATE_HISTORY_PATH = CONFIG_DIR / "codex_state_history.json"
+WAL_PATH = CONFIG_DIR / "codex_state_wal.jsonl"
 MAX_HISTORY_ENTRIES = 50
 MIN_STATE_DURATION_S = 300  # 5 minutes minimum in a state
 
@@ -50,10 +51,13 @@ class StateStore:
         manual_path: Optional[Path] = None,
         auto_path: Optional[Path] = None,
         history_path: Optional[Path] = None,
+        wal_path: Optional[Path] = None,
     ):
         self.manual_path = Path(manual_path) if manual_path else MANUAL_STATE_PATH
         self.auto_path = Path(auto_path) if auto_path else AUTO_STATE_PATH
         self.history_path = Path(history_path) if history_path else self.manual_path.parent / "codex_state_history.json"
+        self.wal_path = Path(wal_path) if wal_path else WAL_PATH
+        self.recover_from_wal()
         self._ensure_state_files()
 
     def _ensure_state_files(self):
@@ -93,20 +97,81 @@ class StateStore:
         except (json.JSONDecodeError, IOError) as e:
             raise StateError(f"Failed to read state file {path}: {e}")
 
-    def _write(self, path: Path, data: dict):
-        """Atomic write: write to temp file, then rename."""
+    def _append_to_wal(self, entry: dict) -> None:
+        """Append an entry to the WAL (JSONL)."""
+        self.wal_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.wal_path, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+
+    def _truncate_wal(self) -> None:
+        """Truncate the WAL file."""
+        if self.wal_path.exists():
+            self.wal_path.write_text("")
+
+    def recover_from_wal(self) -> int:
+        """Recover from uncommitted WAL entries on restart.
+
+        Reads the WAL, applies any uncommitted write intents, then
+        truncates the WAL. Returns the number of recovered entries.
+        """
+        if not self.wal_path.exists():
+            return 0
+
         try:
-            # Write to temp file in same directory
+            lines = self.wal_path.read_text().strip().splitlines()
+        except (IOError, OSError):
+            return 0
+
+        if not lines:
+            return 0
+
+        # Parse WAL entries, skip malformed lines
+        entries = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except (json.JSONDecodeError, ValueError, TypeError):
+                continue  # corrupted line, skip
+
+        # Find uncommitted writes (writes without a subsequent committed marker)
+        recovered = 0
+        for i, entry in enumerate(entries):
+            if entry.get("action") == "write":
+                # Check if a committed marker follows
+                committed = any(
+                    e.get("action") == "committed" for e in entries[i + 1 :]
+                )
+                if not committed:
+                    # Apply the uncommitted write
+                    target_path = Path(entry["path"])
+                    data = entry["data"]
+                    try:
+                        # Direct atomic write without WAL re-append
+                        self._atomic_write_only(target_path, data)
+                        recovered += 1
+                    except (IOError, OSError, StateError):
+                        pass  # Best-effort recovery
+
+        # Truncate WAL after recovery
+        self._truncate_wal()
+        return recovered
+
+    def _atomic_write_only(self, path: Path, data: dict) -> None:
+        """Atomic write without WAL logging (used during recovery)."""
+        try:
             fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=".state_", suffix=".tmp")
             try:
                 with os.fdopen(fd, "w") as f:
                     json.dump(data, f, indent=2)
                     f.flush()
                     os.fsync(f.fileno())
-                # Atomic rename
                 os.replace(tmp_path, path)
             except Exception:
-                # Clean up temp file on failure
                 try:
                     os.unlink(tmp_path)
                 except OSError:
@@ -114,6 +179,30 @@ class StateStore:
                 raise
         except IOError as e:
             raise StateError(f"Failed to write state file {path}: {e}")
+
+    def _write(self, path: Path, data: dict):
+        """Atomic write: write to temp file, then rename.
+
+        Uses WAL: appends intent before write, committed marker after.
+        """
+        ts = datetime.now(timezone.utc).isoformat()
+        # 1. Append write intent to WAL
+        self._append_to_wal({
+            "action": "write",
+            "path": str(path),
+            "data": data,
+            "timestamp": ts,
+        })
+        try:
+            # 2. Perform atomic write
+            self._atomic_write_only(path, data)
+            # 3. Mark WAL entry as committed
+            self._append_to_wal({
+                "action": "committed",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+        except Exception:
+            raise
 
     # -------------------------------------------------------------------------
     # Manual state (user-overridden, takes precedence)
