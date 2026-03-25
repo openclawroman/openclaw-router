@@ -67,6 +67,17 @@ def list_models() -> List[str]:
     return names
 
 
+def get_reliability_config() -> dict:
+    """Get reliability/fallback configuration with defaults."""
+    config = load_config()
+    reliability = config.get("reliability", {})
+    return {
+        "chain_timeout_s": reliability.get("chain_timeout_s", 600),
+        "drain_timeout_s": reliability.get("drain_timeout_s", 30),
+        "max_retries": reliability.get("max_retries", 2),
+    }
+
+
 def reload_config(config_path: Optional[Path] = None):
     """Clear config cache (for testing or hot-reload).
 

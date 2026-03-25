@@ -53,6 +53,13 @@ from pathlib import Path
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Health check mode
+if "--health" in sys.argv:
+    from router.health import health_check
+    report = health_check()
+    print(json.dumps(report, indent=2))
+    sys.exit(0)
+
 from router import (
     TaskMeta, TaskClass, TaskRisk, TaskModality,
     route_task, RoutingLogger, RouterError
