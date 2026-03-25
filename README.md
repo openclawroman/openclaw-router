@@ -80,8 +80,10 @@ The router operates in two states based on recent execution history:
 |---|------|---------|---------------|------|
 | 1 | `codex_cli` | `openai_native` | Codex OAuth | **Primary** in normal state — fastest, cheapest for standard code tasks |
 | 2 | `claude_code` | `anthropic` | Claude | **Secondary** in normal, **primary** in last10 — high-quality code generation |
-| 3 | `codex_cli` | `openrouter` | `minimax-minimax-m2.7` | **Open-source lane** — default fallback for broad compatibility |
-| 4 | `codex_cli` | `openrouter` | `moonshotai/kimi-k2.5` | **Multimodal specialist** — screenshots, image analysis, swarm tasks |
+| 3 | `codex_cli` | `openrouter` | minimax (config-driven) | **Open-source lane** — default fallback for broad compatibility |
+| 4 | `codex_cli` | `openrouter` | kimi (config-driven) | **Multimodal specialist** — screenshots, image analysis, swarm tasks |
+
+> **Model strings are config-driven** — all model names live in `config/router.config.json` under `models`. To swap a model, edit one line there. No code changes needed. See [Changing Models](#changing-models).
 
 Executor selection depends on:
 
@@ -89,6 +91,30 @@ Executor selection depends on:
 - Task modality (`text`, `image`, `video`, `mixed`)
 - Task flags (`has_screenshots`, `requires_multimodal`, `swarm`)
 - Previous failures in the chain
+
+### Changing Models
+
+All model strings live in **one place**: `config/router.config.json` under the `models` section.
+
+```json
+{
+  "models": {
+    "openrouter": {
+      "minimax": "minimax/minimax-m2.7",
+      "kimi": "moonshotai/kimi-k2.5"
+    }
+  }
+}
+```
+
+To swap a model (e.g. when a new version releases), edit **one line** in this file. Both `policy.py` and `executors.py` read models via `get_model()` from `router/config_loader.py` — no code changes needed.
+
+```bash
+# Example: upgrade minimax to v3.0
+# Edit config/router.config.json:
+#   "minimax": "minimax/minimax-m3.0"
+# Done.
+```
 
 ---
 
@@ -137,7 +163,7 @@ Returned after execution. Contains the outcome, metrics, and artifacts.
 | `task_id` | `str` | Task identifier |
 | `tool` | `str` | Executor tool used (`codex_cli`, `claude_code`) |
 | `backend` | `str` | Backend used (`openai_native`, `anthropic`, `openrouter`) |
-| `model_profile` | `str | None` | Model profile (e.g. `minimax-minimax-m2.7`) |
+| `model_profile` | `str | None` | Model profile (e.g. `openrouter_minimax`) |
 | `success` | `bool` | Whether execution succeeded |
 | `normalized_error` | `str | None` | Error category (see [Error Handling](#error-handling)) |
 | `exit_code` | `int | None` | Process exit code |
@@ -219,6 +245,7 @@ openclaw-router/
 │   ├── state_store.py          # StateStore — manual/auto state files
 │   ├── logger.py               # RoutingLogger — JSONL event logging
 │   ├── telemetry.py            # RouteQualityReporter — routing quality metrics
+│   ├── config_loader.py        # get_model() — config-driven model strings
 │   ├── output_format.py        # Output format validation
 │   └── flow_control.py         # Pipeline phase management
 ├── config/
