@@ -120,16 +120,22 @@ def _build_openai_primary_chain(task: TaskMeta) -> List[ChainEntry]:
 
 
 def _build_openai_conservation_chain(task: TaskMeta) -> List[ChainEntry]:
-    """openai_conservation: Conserve OpenAI usage, prioritize OpenRouter fallback."""
-    # In conservation mode: gpt-5.4-mini for almost everything
-    if task.risk == TaskRisk.CRITICAL or task.task_class in (TaskClass.REPO_ARCHITECTURE_CHANGE, TaskClass.DEBUG):
+    """openai_conservation: Conserve OpenAI usage. Almost everything → gpt-5.4-mini.
+
+    Spec: "default executor for almost everything → gpt-5.4-mini.
+    Only planner / final review / very high-risk tasks → gpt-5.4."
+    Chain order: Codex → Claude → OpenRouter (Claude is still a prepaid bucket,
+    OpenRouter is paid — subscription preservation comes first).
+    """
+    # Higher bar than primary: only CRITICAL risk gets gpt-5.4
+    if task.risk == TaskRisk.CRITICAL:
         openai_profile = "codex_gpt54"
     else:
         openai_profile = "codex_gpt54_mini"
     return [
         ChainEntry(tool="codex_cli", backend="openai_native", model_profile=openai_profile),
-        ChainEntry(tool="codex_cli", backend="openrouter", model_profile=ModelProfile.OPENROUTER_MINIMAX.value),
         ChainEntry(tool="claude_code", backend="anthropic", model_profile="claude_primary"),
+        ChainEntry(tool="codex_cli", backend="openrouter", model_profile=ModelProfile.OPENROUTER_MINIMAX.value),
     ]
 
 

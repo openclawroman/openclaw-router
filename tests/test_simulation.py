@@ -424,19 +424,19 @@ class TestSimulation:
         assert decision.fallback_from == "claude_code"
 
     def test_scenario_20_openai_conservation_fallback_chain(self, monkeypatch):
-        """openai_conservation: codex fails → openrouter tried before claude."""
+        """openai_conservation: codex fails → claude tried before openrouter (subscription first)."""
         config = MockExecutorConfig()
         config.set_executor("codex_cli:openai_native", success=False, normalized_error="quota_exhausted")
-        config.set_executor("codex_cli:openrouter", success=True)
         config.set_executor("claude_code:anthropic", success=True)
+        config.set_executor("codex_cli:openrouter", success=True)
         _patch_executors(monkeypatch, config)
         _set_state(monkeypatch, CodexState.OPENAI_CONSERVATION)
 
         task = _make_task(task_id="sim-20")
         decision, result = route_task(task)
 
-        # Should succeed at openrouter (chain[1]) before trying claude
+        # Should succeed at claude (chain[1]) before trying openrouter (subscription before paid)
         assert result.success
-        assert result.backend == "openrouter"
+        assert result.backend == "anthropic"
         assert decision.attempted_fallback
         assert decision.fallback_from == "codex_cli"

@@ -153,17 +153,19 @@ class TestBuildChainFourStates:
         chain = build_chain(self._task(), CodexState.OPENAI_CONSERVATION)
         assert len(chain) == 3
 
-    def test_openai_conservation_second_is_openrouter(self):
+    def test_openai_conservation_second_is_claude(self):
+        """In conservation mode, Claude is second (subscription before paid OpenRouter)."""
         from router.policy import build_chain
         chain = build_chain(self._task(), CodexState.OPENAI_CONSERVATION)
-        assert chain[1].tool == "codex_cli"
-        assert chain[1].backend == "openrouter"
+        assert chain[1].tool == "claude_code"
+        assert chain[1].backend == "anthropic"
 
-    def test_openai_conservation_third_is_claude(self):
+    def test_openai_conservation_third_is_openrouter(self):
+        """In conservation mode, OpenRouter is the paid fallback."""
         from router.policy import build_chain
         chain = build_chain(self._task(), CodexState.OPENAI_CONSERVATION)
-        assert chain[2].tool == "claude_code"
-        assert chain[2].backend == "anthropic"
+        assert chain[2].tool == "codex_cli"
+        assert chain[2].backend == "openrouter"
 
     # --- claude_backup ---
     def test_claude_backup_starts_with_claude(self):

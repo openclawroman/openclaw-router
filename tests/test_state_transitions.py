@@ -146,7 +146,7 @@ class TestStateTransitionEdges:
         """Transition from primary to conservation is about budget, not failures.
         
         Both states use codex_cli as primary, but conservation uses mini
-        more aggressively and prioritizes openrouter as second fallback.
+        more aggressively. Both keep Claude as second entry (subscription before paid).
         """
         task = TaskMeta(
             task_id="t1", task_class=TaskClass.IMPLEMENTATION,
@@ -157,8 +157,8 @@ class TestStateTransitionEdges:
 
         # Both use codex_cli first
         assert primary_chain[0].tool == conservation_chain[0].tool == "codex_cli"
-        # Conservation prioritizes openrouter as second entry (not claude)
-        assert conservation_chain[1].backend == "openrouter"
+        # Both use Claude as second entry (subscription before OpenRouter)
+        assert conservation_chain[1].backend == "anthropic"
         assert primary_chain[1].backend == "anthropic"
 
     def test_conservation_to_claude_is_exhaustion_driven(self):
