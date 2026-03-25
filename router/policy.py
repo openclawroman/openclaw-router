@@ -3,8 +3,7 @@
 import os
 from enum import Enum
 from pathlib import Path
-from typing import Optional, List, Tuple, Dict, Any
-from threading import Lock
+from typing import Optional, List, Tuple
 
 from .models import (
     TaskMeta, RouteDecision, ExecutorResult, ChainEntry,
@@ -15,6 +14,35 @@ from .state_store import StateStore
 from .executors import run_codex, run_claude, run_openrouter
 from .errors import ExecutorError, ELIGIBLE_FALLBACK_ERRORS, can_fallback
 from .config_loader import get_model
+from .circuit_breaker import CircuitBreaker
+
+
+# ---------------------------------------------------------------------------
+# Circuit breaker singleton
+# ---------------------------------------------------------------------------
+
+_breaker: Optional[CircuitBreaker] = None
+
+
+def get_breaker() -> CircuitBreaker:
+    """Get or create the circuit breaker singleton."""
+    global _breaker
+    if _breaker is None:
+        from .config_loader import load_config
+        config = load_config()
+        cb_config = config.get("reliability", {}).get("circuit_breaker", {})
+        _breaker = CircuitBreaker(
+            threshold=cb_config.get("threshold", 5),
+            window_s=cb_config.get("window_s", 60),
+            cooldown_s=cb_config.get("cooldown_s", 120),
+        )
+    return _breaker
+
+
+def reset_breaker() -> None:
+    """Reset the circuit breaker singleton. Primarily for testing."""
+    global _breaker
+    _breaker = None
 
 
 # ---------------------------------------------------------------------------
@@ -44,45 +72,6 @@ def claude_available() -> bool:
         or Path(os.path.expanduser("~/.local/bin/claude")).exists()
         or os.system("command -v claude > /dev/null 2>&1") == 0
     )
-
-
-# ---------------------------------------------------------------------------
-# Circuit breaker
-# ---------------------------------------------------------------------------
-
-class CircuitBreaker:
-    """Simple circuit breaker for tracking provider health."""
-
-    def __init__(self):
-        self._lock = Lock()
-        self._stats: Dict[str, Dict[str, Any]] = {}
-
-    def get_stats(self) -> Dict[str, Any]:
-        """Get stats for all tracked providers."""
-        with self._lock:
-            return dict(self._stats)
-
-    def record_success(self, key: str) -> None:
-        """Record a successful execution."""
-        with self._lock:
-            self._stats[key] = {"state": "closed", "failure_count": 0}
-
-    def record_failure(self, key: str) -> None:
-        """Record a failed execution."""
-        with self._lock:
-            entry = self._stats.get(key, {"state": "closed", "failure_count": 0})
-            entry["failure_count"] = entry.get("failure_count", 0) + 1
-            if entry["failure_count"] >= 5:
-                entry["state"] = "open"
-            self._stats[key] = entry
-
-
-_breaker = CircuitBreaker()
-
-
-def get_breaker() -> CircuitBreaker:
-    """Get the global circuit breaker instance."""
-    return _breaker
 
 
 # ---------------------------------------------------------------------------
@@ -296,18 +285,28 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
     fallback_from = None
     last_error: Optional[str] = None
     result: Optional[ExecutorResult] = None
+    providers_skipped: List[str] = []
+    breaker = get_breaker()
 
     # Register task as in-flight
     shutdown_mgr.register_task(task.task_id, state_str, chain[0].tool if chain else "none")
 
     try:
         for entry in chain:
+            # Circuit breaker: skip if provider is open
+            if not breaker.is_available(entry.tool, entry.backend):
+                providers_skipped.append(f"{entry.tool}:{entry.backend}")
+                continue
+
             last_error = None
             try:
                 result = _run_executor(entry, task)
                 if result.success:
+                    breaker.record_success(entry.tool, entry.backend)
                     break
                 # Non-success but no exception — check if fallback-eligible
+                if result.normalized_error:
+                    breaker.record_failure(entry.tool, entry.backend, result.normalized_error)
                 if result.normalized_error and can_fallback(result.normalized_error):
                     if fallback_from is None:
                         fallback_from = entry.tool
@@ -316,6 +315,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                     break
             except ExecutorError as e:
                 last_error = e.error_type
+                breaker.record_failure(entry.tool, entry.backend, e.error_type)
                 result = ExecutorResult(
                     task_id=task.task_id,
                     tool=entry.tool,
@@ -343,6 +343,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
             reason=reason,
             attempted_fallback=fallback_from is not None,
             fallback_from=fallback_from,
+            providers_skipped=providers_skipped,
         )
 
         return decision, result
