@@ -230,7 +230,7 @@ class TestExecutorResult(unittest.TestCase):
             "task_id", "tool", "backend", "model_profile", "success",
             "normalized_error", "exit_code", "latency_ms", "request_id",
             "cost_estimate_usd", "artifacts", "stdout_ref", "stderr_ref",
-            "final_summary", "trace_id",
+            "final_summary", "trace_id", "rate_limit_info",
         }
         actual = set(vars(result).keys())
         self.assertEqual(actual, expected)

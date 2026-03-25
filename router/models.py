@@ -143,3 +143,4 @@ class ExecutorResult:
     stderr_ref: Optional[str] = None
     final_summary: Optional[str] = None
     trace_id: str = ""
+    rate_limit_info: Optional[dict] = None  # Serialized RateLimitInfo
