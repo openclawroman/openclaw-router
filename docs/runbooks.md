@@ -440,3 +440,71 @@ print('DRY RUN 5 PASSED')
 ```
 
 **Verification:** Script prints "DRY RUN 5 PASSED" confirming fallback logic works correctly.
+
+---
+
+## 6. Config Validation
+
+The router includes a config validation system that checks `config/router.config.json` at startup and can be run manually via CLI.
+
+### CLI Flag: `--validate-config`
+
+```bash
+./bin/ai-code-runner --validate-config
+```
+
+### What Validation Checks
+
+The validator performs the following checks:
+
+- **Required top-level keys**: `version`, `models`, `state`, `tools`
+- **Version compatibility**: `version` must be in `SUPPORTED_VERSIONS` (currently `{1, 2}`)
+- **Required model sections**: `openrouter`, `codex`, `claude` must be present under `models`
+- **State configuration**: `state.default`, `state.manual_state_file`, `state.auto_state_file` must exist
+- **Default state validity**: `state.default` must be one of `openai_primary`, `openai_conservation`, `claude_backup`, `openrouter_fallback`
+- **Required tools**: `codex_cli` must be present; `claude_code` is a warning if missing
+- **Reliability config types**: `chain_timeout_s`, `max_fallbacks`, and circuit breaker params must be numbers
+- **Unknown keys**: Warns on any unrecognized top-level keys
+
+### How to Read Error Messages
+
+Each error/warning line follows the format:
+
+```
+  [severity] path: message
+```
+
+- **`[error]`** — Config is invalid and the router will refuse to start
+- **`[warning]`** — Config is valid but has a potential issue (e.g. empty model section)
+
+The `path` tells you exactly where in the config the problem is (e.g. `models.openrouter`, `state.default`, `reliability.circuit_breaker.threshold`).
+
+### Example Validation Output
+
+**Valid config:**
+```
+Config OK
+```
+
+**Invalid config:**
+```
+Config INVALID: 2 error(s), 1 warning(s)
+  [error] version: Unsupported version 99. Supported: {1, 2}
+  [error] state.default: Invalid default state 'bad_state'. Valid: {'openai_primary', 'openai_conservation', 'claude_backup', 'openrouter_fallback'}
+  [warning] unknown_section: Unknown top-level key: 'unknown_section'
+```
+
+### Programmatic Usage
+
+```python
+from router.config_validator import validate_config_file
+
+result = validate_config_file("config/router.config.json")
+if not result.valid:
+    for err in result.errors:
+        print(f"[{err.severity}] {err.path}: {err.message}")
+```
+
+### Note on VALID_STATES
+
+The `VALID_STATES` set in `config_validator.py` is kept in sync with the `RouterState` enum in `router/policy.py`. If you add a new state to the router, remember to update both places. (Future improvement: import `VALID_STATES` directly from the model.)

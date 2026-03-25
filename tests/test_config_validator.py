@@ -161,3 +161,51 @@ class TestValidationResult:
         del config["version"]
         result = validate_config(config)
         assert "INVALID" in result.summary()
+
+
+class TestValidateConfigFile:
+    """Edge-case tests for validate_config_file()."""
+
+    def test_missing_file_returns_file_error(self, tmp_path):
+        """Missing file should return ValidationResult with a file error."""
+        missing = tmp_path / "nonexistent_config.json"
+        result = validate_config_file(str(missing))
+        assert not result.valid
+        assert result.error_count == 1
+        err = result.errors[0]
+        assert err.path == "file"
+        assert err.severity == "error"
+        assert "nonexistent_config.json" in err.message
+
+    def test_invalid_json_returns_parse_error(self, tmp_path):
+        """Invalid JSON file should return ValidationResult with a parse error."""
+        bad_json = tmp_path / "bad_config.json"
+        bad_json.write_text("{invalid json!!!")
+        result = validate_config_file(str(bad_json))
+        assert not result.valid
+        assert result.error_count == 1
+        err = result.errors[0]
+        assert err.path == "file"
+        assert err.severity == "error"
+        assert "JSON" in err.message or "json" in err.message.lower() or "line" in err.message.lower()
+
+    def test_valid_file_validates_and_returns_result(self, tmp_path):
+        """A valid config file should pass validation."""
+        good = tmp_path / "good_config.json"
+        import json as _json
+        good.write_text(_json.dumps(_valid_config(), indent=2))
+        result = validate_config_file(str(good))
+        assert result.valid
+        assert result.error_count == 0
+
+    def test_invalid_schema_returns_schema_errors(self, tmp_path):
+        """A JSON file with invalid schema should fail validation."""
+        bad_schema = tmp_path / "bad_schema.json"
+        import json as _json
+        config = _valid_config()
+        del config["version"]
+        bad_schema.write_text(_json.dumps(config))
+        result = validate_config_file(str(bad_schema))
+        assert not result.valid
+        assert result.error_count >= 1
+        assert any("version" in e.path for e in result.errors)
