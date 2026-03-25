@@ -117,15 +117,19 @@ class StateStore:
         except (json.JSONDecodeError, IOError) as e:
             raise StateError(f"Failed to read state file {path}: {e}")
 
+    def _append_to_wal_unlocked(self, entry: dict) -> None:
+        """Append an entry to the WAL (JSONL). Caller must hold self._lock."""
+        self.wal_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.wal_path, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        _restrict_permissions(self.wal_path)
+
     def _append_to_wal(self, entry: dict) -> None:
-        """Append an entry to the WAL (JSONL)."""
+        """Append an entry to the WAL (JSONL). Thread-safe (acquires lock)."""
         with self._lock:
-            self.wal_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.wal_path, "a") as f:
-                f.write(json.dumps(entry) + "\n")
-                f.flush()
-                os.fsync(f.fileno())
-            _restrict_permissions(self.wal_path)
+            self._append_to_wal_unlocked(entry)
 
     def _truncate_wal(self) -> None:
         """Truncate the WAL file."""
@@ -208,11 +212,12 @@ class StateStore:
         """Atomic write: write to temp file, then rename.
 
         Uses WAL: appends intent before write, committed marker after.
+        Caller may hold self._lock (RLock reentrant).
         """
         with self._lock:
             ts = datetime.now(timezone.utc).isoformat()
-            # 1. Append write intent to WAL
-            self._append_to_wal({
+            # 1. Append write intent to WAL (unlocked — we hold the lock)
+            self._append_to_wal_unlocked({
                 "action": "write",
                 "path": str(path),
                 "data": data,
@@ -222,7 +227,7 @@ class StateStore:
                 # 2. Perform atomic write
                 self._atomic_write_only(path, data)
                 # 3. Mark WAL entry as committed
-                self._append_to_wal({
+                self._append_to_wal_unlocked({
                     "action": "committed",
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
