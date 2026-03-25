@@ -440,18 +440,13 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
         # --- Notifications ---
         notifier = get_notifier()
 
-        # Fallback rate alert (if we fell back)
-        if fallback_count > 0:
-            notifier.check_fallback_rate(
-                total_tasks=1,
-                fallback_tasks=1,
-                window_hours=1,
-            )
+        # State change notification (if state changed)
+        # Fallback rate is checked by periodic monitoring (MetricsCollector), not per-request
 
-        # Conservation duration check
+        # Conservation duration check (if state_entered_at is tracked)
         notifier.check_conservation_duration(
             state=state_str,
-            state_entered_at=None,  # Could be tracked from state history
+            state_entered_at=None,  # Tracked from state history in future update
         )
 
         # Write attempt trace
