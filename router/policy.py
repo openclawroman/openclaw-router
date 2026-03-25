@@ -13,14 +13,7 @@ from .models import (
 from .state_store import StateStore
 from .executors import run_codex, run_claude, run_openrouter
 from .errors import ExecutorError
-
-
-# ---------------------------------------------------------------------------
-# Configurable model strings
-# ---------------------------------------------------------------------------
-
-OPENROUTER_MINIMAX_MODEL = "minimax/minimax-m2.7"
-OPENROUTER_KIMI_MODEL = "moonshotai/kimi-k2.5"
+from .config_loader import get_model
 
 
 # ---------------------------------------------------------------------------
@@ -68,8 +61,8 @@ def choose_openrouter_profile(task: TaskMeta) -> ModelProfile:
 
 def _openrouter_model(profile: ModelProfile) -> str:
     if profile == ModelProfile.OPENROUTER_KIMI:
-        return OPENROUTER_KIMI_MODEL
-    return OPENROUTER_MINIMAX_MODEL
+        return get_model("kimi")
+    return get_model("minimax")
 
 
 # ---------------------------------------------------------------------------

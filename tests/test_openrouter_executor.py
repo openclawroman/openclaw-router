@@ -16,9 +16,8 @@ from router.executors import (
     run_codex_openrouter_kimi,
     _openrouter_request,
     _save_request_response,
-    OPENROUTER_MINIMAX_MODEL,
-    OPENROUTER_KIMI_MODEL,
 )
+from router.config_loader import get_model
 
 
 def _make_meta(task_id="task-001", summary="Write a hello world function"):
@@ -45,10 +44,10 @@ def _mock_response(status=200, body=None):
 
 class TestModelStrings:
     def test_minimax_model_is_m25(self):
-        assert OPENROUTER_MINIMAX_MODEL == "minimax/minimax-m2.7"
+        assert get_model("minimax") == "minimax/minimax-m2.7"
 
     def test_kimi_model(self):
-        assert OPENROUTER_KIMI_MODEL == "moonshotai/kimi-k2.5"
+        assert get_model("kimi") == "moonshotai/kimi-k2.5"
 
 
 # ── File saving ────────────────────────────────────────────────────────────
