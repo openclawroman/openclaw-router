@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""
+ai-code-runner - stdin JSON entrypoint for OpenClaw coder lane.
+
+Usage:
+    cat task.json | ./ai-code-runner
+
+Input (stdin JSON):
+{
+    "agent": "coder",
+    "task_type": "implementation",
+    "task_brief": "Implement token refresh flow",
+    "repo_path": "/path/to/repo",
+    "branch": "feature/auth",
+    "risk": "medium",
+    "criticality": "normal",
+    "context_size": "medium"
+}
+
+Output (stdout JSON):
+{
+    "executor": "codex_cli",
+    "model": "codex-default",
+    "reason": "included_first: coder defaults to Codex",
+    "attempted_fallback": false,
+    "status": "success"
+}
+"""
+
+import sys
+import json
+import time
+from pathlib import Path
+
+# Add parent to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from router import (
+    TaskMeta, TaskType, TaskRisk, TaskCriticality,
+    route_task, RoutingLogger, RouterError
+)
+
+
+def parse_task(data: dict) -> TaskMeta:
+    """Parse input JSON into TaskMeta."""
+    return TaskMeta(
+        agent=data.get("agent", "coder"),
+        task_type=TaskType(data.get("task_type", "implementation")),
+        task_brief=data.get("task_brief", ""),
+        repo_path=data.get("repo_path", ""),
+        branch=data.get("branch", "main"),
+        risk=TaskRisk(data.get("risk", "medium")),
+        criticality=TaskCriticality(data.get("criticality", "normal")),
+        context_size=data.get("context_size", "medium")
+    )
+
+
+def main():
+    """Main entrypoint."""
+    try:
+        # Read stdin JSON
+        input_data = json.load(sys.stdin)
+        task = parse_task(input_data)
+        
+        # Route the task
+        start_time = time.time()
+        decision = route_task(task)
+        latency_ms = int((time.time() - start_time) * 1000)
+        
+        # Log the decision
+        logger = RoutingLogger()
+        logger.log(task, decision, latency_ms)
+        
+        # Output result
+        result = {
+            "executor": decision.executor.value,
+            "model": decision.model,
+            "reason": decision.reason,
+            "attempted_fallback": decision.attempted_fallback,
+            "status": decision.status
+        }
+        if decision.error_type:
+            result["error_type"] = decision.error_type
+        if decision.fallback_from:
+            result["fallback_from"] = decision.fallback_from
+            
+        print(json.dumps(result, indent=2))
+        
+    except json.JSONDecodeError as e:
+        print(json.dumps({"error": f"Invalid JSON input: {e}"}), file=sys.stderr)
+        sys.exit(1)
+    except RouterError as e:
+        print(json.dumps({"error": str(e), "type": type(e).__name__}), file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(json.dumps({"error": f"Unexpected error: {e}"}), file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

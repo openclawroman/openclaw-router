@@ -1,0 +1,31 @@
+default_state: included_first
+
+models:
+  openrouter:
+    large_context: moonshotai/kimi-k2.5
+    cheap_support: minimax/minimax-m2.5
+
+routing:
+  coder:
+    included_first:
+      executor: codex_cli
+      model: codex-default
+    included_stretch:
+      executor: codex_cli
+      model: codex-default
+    last10:
+      critical:
+        executor: codex_cli
+        model: codex-default
+      normal:
+        executor: claude_code
+        model: claude-default
+        fallback:
+          executor: openrouter
+          model: moonshotai/kimi-k2.5
+    exhausted:
+      executor: claude_code
+      model: claude-default
+      fallback:
+        executor: openrouter
+        model: moonshotai/kimi-k2.5
