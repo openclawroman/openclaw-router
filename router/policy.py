@@ -299,7 +299,33 @@ def _run_executor(entry: ChainEntry, task: TaskMeta, trace_id: str = "") -> Exec
 
     # Stamp trace_id on the result
     result.trace_id = trace_id
+
+    # Detect partial success: failure but has useful output
+    if not result.success:
+        if result.final_summary is not None:
+            result.partial_success = True
+        elif result.artifacts:
+            result.partial_success = True
+
+    # Extract warnings from stderr
+    result.warnings = _extract_warnings(result.stderr_ref)
+
     return result
+
+
+def _extract_warnings(stderr_ref: Optional[str]) -> List[str]:
+    """Extract warning lines from a stderr file reference."""
+    warnings: List[str] = []
+    if not stderr_ref:
+        return warnings
+    try:
+        content = Path(stderr_ref).read_text(encoding="utf-8", errors="replace")
+        for line in content.splitlines():
+            if "warning" in line.lower() or "WARN" in line:
+                warnings.append(line.strip())
+    except OSError:
+        pass
+    return warnings
 
 
 # ---------------------------------------------------------------------------
@@ -420,6 +446,9 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                 ))
                 if result.success:
                     breaker.record_success(entry.tool, entry.backend)
+                    break
+                if result.partial_success:
+                    # Partial success has useful output — don't fallback
                     break
                 # Non-success but no exception — check if fallback-eligible
                 if result.normalized_error:
