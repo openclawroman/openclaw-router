@@ -59,6 +59,10 @@ class RoutingLogger:
                 entry["result"]["cost_estimate_usd"] = result.cost_estimate_usd
             if result.artifacts:
                 entry["result"]["artifacts"] = result.artifacts
+            if result.stdout_ref:
+                entry["result"]["stdout_ref"] = result.stdout_ref
+            if result.stderr_ref:
+                entry["result"]["stderr_ref"] = result.stderr_ref
             if result.final_summary:
                 entry["result"]["final_summary"] = result.final_summary
 
