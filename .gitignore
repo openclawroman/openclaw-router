@@ -10,3 +10,4 @@ config/codex_auto_state.json
 *.egg-info/
 dist/
 build/
+runtime/alerts.jsonl
