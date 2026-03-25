@@ -78,10 +78,13 @@ The router operates in two states based on recent execution history:
 
 | # | Tool | Backend | Model/Profile | Role |
 |---|------|---------|---------------|------|
-| 1 | `codex_cli` | `openai_native` | Codex OAuth | **Primary** in normal state — fastest, cheapest for standard code tasks |
+| 1a | `codex_cli` | `openai_native` | **gpt-5.4** | **Heavy lane** — planning, hard debugging, risky multi-file work, final judgment |
+| 1b | `codex_cli` | `openai_native` | **gpt-5.4-mini** | **Light lane** — code search, reading files, docs, simple fixes, cheap tasks |
 | 2 | `claude_code` | `anthropic` | Claude | **Secondary** in normal, **primary** in last10 — high-quality code generation |
 | 3 | `codex_cli` | `openrouter` | minimax (config-driven) | **Open-source lane** — default fallback for broad compatibility |
 | 4 | `codex_cli` | `openrouter` | kimi (config-driven) | **Multimodal specialist** — screenshots, image analysis, swarm tasks |
+
+> **OpenAI profile selection** — `choose_openai_profile(task)` picks gpt-5.4 when `risk=critical`, `task_class=debug`, or `task_class=repo_architecture_change`. Everything else gets gpt-5.4-mini.
 
 > **Model strings are config-driven** — all model names live in `config/router.config.json` under `models`. To swap a model, edit one line there. No code changes needed. See [Changing Models](#changing-models).
 
@@ -102,6 +105,10 @@ All model strings live in **one place**: `config/router.config.json` under the `
     "openrouter": {
       "minimax": "minimax/minimax-m2.7",
       "kimi": "moonshotai/kimi-k2.5"
+    },
+    "codex": {
+      "gpt54": "gpt-5.4",
+      "gpt54_mini": "gpt-5.4-mini"
     }
   }
 }
