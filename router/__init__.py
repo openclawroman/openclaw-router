@@ -55,6 +55,7 @@ from .flow_control import (
     requires_three_phase,
     select_flow,
 )
+from .config_loader import load_config, get_model, reload_config
 
 __all__ = [
     # models
@@ -111,4 +112,8 @@ __all__ = [
     "PipelineResult",
     "requires_three_phase",
     "select_flow",
+    # config_loader
+    "load_config",
+    "get_model",
+    "reload_config",
 ]

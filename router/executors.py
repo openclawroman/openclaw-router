@@ -75,9 +75,7 @@ def _update_claude_health(success: bool, error_type: Optional[str] = None) -> No
         json.dumps(health, indent=2), encoding="utf-8"
     )
 
-# OpenRouter models
-OPENROUTER_MINIMAX_MODEL = "minimax/minimax-m2.7"
-OPENROUTER_KIMI_MODEL    = "moonshotai/kimi-k2.5"
+from .config_loader import get_model
 
 
 def _make_result(
@@ -200,7 +198,7 @@ def run_codex_openrouter_minimax(meta: TaskMeta) -> ExecutorResult:
 
     return _openrouter_request(
         meta=meta,
-        model=OPENROUTER_MINIMAX_MODEL,
+        model=get_model("minimax"),
         tool="codex_cli",
         backend="openrouter",
         model_profile="openrouter_minimax",
@@ -231,7 +229,7 @@ def run_codex_openrouter_kimi(meta: TaskMeta) -> ExecutorResult:
 
     return _openrouter_request(
         meta=meta,
-        model=OPENROUTER_KIMI_MODEL,
+        model=get_model("kimi"),
         tool="codex_cli",
         backend="openrouter",
         model_profile="openrouter_kimi",
@@ -411,10 +409,12 @@ def run_claude(meta: TaskMeta) -> ExecutorResult:
 
 def run_openrouter(
     meta: TaskMeta,
-    model: str = "minimax/minimax-m2.7",
+    model: str = None,
     profile: str = "openrouter_minimax",
 ) -> ExecutorResult:
     """Run OpenRouter API call with specified model."""
+    if model is None:
+        model = get_model("minimax")
     return _openrouter_request(
         meta=meta,
         model=model,
