@@ -1,8 +1,11 @@
 """Persistent state store for Codex usage tracking."""
 
 import json
+import os
+import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from .models import CodexState
 from .errors import StateError
@@ -11,6 +14,26 @@ from .errors import StateError
 CONFIG_DIR = Path(__file__).parent.parent / "config"
 MANUAL_STATE_PATH = CONFIG_DIR / "codex_manual_state.json"
 AUTO_STATE_PATH = CONFIG_DIR / "codex_auto_state.json"
+STATE_HISTORY_PATH = CONFIG_DIR / "codex_state_history.json"
+MAX_HISTORY_ENTRIES = 50
+MIN_STATE_DURATION_S = 300  # 5 minutes minimum in a state
+
+# All 4-state transitions are valid (subscription ladder)
+VALID_STATE_TRANSITIONS = {
+    CodexState.OPENAI_PRIMARY: {
+        CodexState.OPENAI_CONSERVATION, CodexState.CLAUDE_BACKUP, CodexState.OPENROUTER_FALLBACK,
+    },
+    CodexState.OPENAI_CONSERVATION: {
+        CodexState.OPENAI_PRIMARY, CodexState.CLAUDE_BACKUP, CodexState.OPENROUTER_FALLBACK,
+    },
+    CodexState.CLAUDE_BACKUP: {
+        CodexState.OPENAI_PRIMARY, CodexState.OPENAI_CONSERVATION, CodexState.OPENROUTER_FALLBACK,
+    },
+    CodexState.OPENROUTER_FALLBACK: {
+        CodexState.OPENAI_PRIMARY, CodexState.OPENAI_CONSERVATION, CodexState.CLAUDE_BACKUP,
+    },
+}
+
 
 # Backward compat mapping: old state names → new ones
 _STATE_BACKWARD_COMPAT = {
@@ -26,9 +49,11 @@ class StateStore:
         self,
         manual_path: Optional[Path] = None,
         auto_path: Optional[Path] = None,
+        history_path: Optional[Path] = None,
     ):
         self.manual_path = Path(manual_path) if manual_path else MANUAL_STATE_PATH
         self.auto_path = Path(auto_path) if auto_path else AUTO_STATE_PATH
+        self.history_path = Path(history_path) if history_path else self.manual_path.parent / "codex_state_history.json"
         self._ensure_state_files()
 
     def _ensure_state_files(self):
@@ -43,11 +68,7 @@ class StateStore:
     def _write_default(self, path: Path, state: CodexState):
         """Write default state to a file."""
         data = {"state": state.value}
-        try:
-            with open(path, "w") as f:
-                json.dump(data, f, indent=2)
-        except IOError as e:
-            raise StateError(f"Failed to write state file {path}: {e}")
+        self._write(path, data)
 
     @staticmethod
     def _validate_state(raw: str) -> Optional["CodexState"]:
@@ -73,10 +94,24 @@ class StateStore:
             raise StateError(f"Failed to read state file {path}: {e}")
 
     def _write(self, path: Path, data: dict):
-        """Write a state file."""
+        """Atomic write: write to temp file, then rename."""
         try:
-            with open(path, "w") as f:
-                json.dump(data, f, indent=2)
+            # Write to temp file in same directory
+            fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=".state_", suffix=".tmp")
+            try:
+                with os.fdopen(fd, "w") as f:
+                    json.dump(data, f, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())
+                # Atomic rename
+                os.replace(tmp_path, path)
+            except Exception:
+                # Clean up temp file on failure
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
         except IOError as e:
             raise StateError(f"Failed to write state file {path}: {e}")
 
@@ -145,3 +180,124 @@ class StateStore:
             "manual": str(self.manual_path),
             "auto": str(self.auto_path),
         }
+
+    # -------------------------------------------------------------------------
+    # State history
+    # -------------------------------------------------------------------------
+
+    def log_state_transition(
+        self,
+        from_state: Optional[CodexState],
+        to_state: CodexState,
+        reason: str,
+    ) -> None:
+        """Log a state transition to the history file."""
+        entry = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "from": from_state.value if from_state else None,
+            "to": to_state.value,
+            "reason": reason,
+        }
+
+        history = []
+        if self.history_path.exists():
+            try:
+                with open(self.history_path, "r") as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    history = data.get("transitions", [])
+                elif isinstance(data, list):
+                    history = data
+            except (json.JSONDecodeError, IOError):
+                history = []
+
+        history.append(entry)
+
+        # Keep only last N entries
+        if len(history) > MAX_HISTORY_ENTRIES:
+            history = history[-MAX_HISTORY_ENTRIES:]
+
+        self._write(self.history_path, {"transitions": history})
+
+    def get_state_history(self, limit: int = 10) -> List[dict]:
+        """Get recent state transitions."""
+        if not self.history_path.exists():
+            return []
+        try:
+            with open(self.history_path, "r") as f:
+                data = json.load(f)
+            return data.get("transitions", [])[-limit:]
+        except (json.JSONDecodeError, IOError):
+            return []
+
+    # -------------------------------------------------------------------------
+    # Anti-flap protection
+    # -------------------------------------------------------------------------
+
+    def can_transition(self, new_state: CodexState) -> tuple[bool, str]:
+        """Check if a state transition is allowed (anti-flap).
+
+        Returns (allowed, reason).
+        """
+        current = self.get_state()
+        if current == new_state:
+            return True, "same_state"
+
+        # Allow emergency overrides (any state → openai_primary or claude_backup is always OK)
+        emergency_targets = {CodexState.OPENAI_PRIMARY, CodexState.CLAUDE_BACKUP}
+        if new_state in emergency_targets:
+            return True, "emergency_override"
+
+        # Check history for recent transitions
+        history = self.get_state_history(limit=5)
+        if not history:
+            return True, "no_history"
+
+        last_entry = history[-1]
+        try:
+            last_ts = datetime.fromisoformat(last_entry["timestamp"].replace("Z", "+00:00"))
+            now = datetime.now(timezone.utc)
+            elapsed = (now - last_ts).total_seconds()
+
+            if elapsed < MIN_STATE_DURATION_S:
+                return False, f"anti_flap: last transition {elapsed:.0f}s ago, minimum is {MIN_STATE_DURATION_S}s"
+        except (ValueError, KeyError, TypeError):
+            pass  # Can't parse history, allow transition
+
+        return True, "allowed"
+
+    def set_state_with_history(
+        self,
+        state: CodexState,
+        reason: str = "manual",
+        force: bool = False,
+    ) -> bool:
+        """Set state with history tracking and anti-flap protection.
+
+        Returns True if the transition was made.
+        """
+        current = self.get_state()
+
+        if not force:
+            allowed, msg = self.can_transition(state)
+            if not allowed:
+                raise StateError(f"State transition blocked: {msg}")
+
+        # Set the state
+        self.set_manual_state(state)
+
+        # Log the transition
+        self.log_state_transition(current, state, reason)
+
+        return True
+
+    # -------------------------------------------------------------------------
+    # Invariant validation
+    # -------------------------------------------------------------------------
+
+    def validate_transition(self, from_state: CodexState, to_state: CodexState) -> bool:
+        """Validate that a state transition is allowed by the state machine."""
+        if from_state == to_state:
+            return True
+        allowed = VALID_STATE_TRANSITIONS.get(from_state, set())
+        return to_state in allowed
