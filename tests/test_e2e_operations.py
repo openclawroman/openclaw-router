@@ -23,11 +23,42 @@ from router.models import (
     RouteDecision, ExecutorResult, ChainEntry, CodexState,
 )
 from router.state_store import StateStore, reset_state_store
+
 from router.config_loader import (
     load_config, reload_config, get_config_snapshot, get_model, list_models,
 )
+import router.config_loader as _cfg_mod
 from router.config_migration import migrate_config, CURRENT_CONFIG_VERSION
 from router.config_validator import validate_config
+from router.model_registry import (
+    check_model_deprecation, get_replacement, validate_config_models,
+    KNOWN_MODELS, ModelVersion, register_model,
+)
+from router.metrics import MetricsCollector
+from router.notifications import NotificationManager, Alert, AlertType, AlertSeverity
+from router.audit import AuditChain, verify_chain, init_chain
+from router.secrets import sanitize_secrets, redact_dict
+from router.sanitize import sanitize_content
+from router.logger import RoutingLogger
+
+
+@pytest.fixture(autouse=True)
+def _restore_config():
+    """Restore original config after each test (reload_config pollutes singleton)."""
+    with _cfg_mod._config_lock:
+        snap = _cfg_mod._config_snapshot
+        raw = getattr(_cfg_mod, '_config_raw', None)
+        path = getattr(_cfg_mod, '_active_config_path', None)
+    yield
+    with _cfg_mod._config_lock:
+        _cfg_mod._config_snapshot = snap
+        _cfg_mod._config_raw = raw
+        if path is not None:
+            _cfg_mod._active_config_path = path
+
+
+class TestConfigHotReload:
+    """Config hot-reload scenarios."""
 from router.model_registry import (
     check_model_deprecation, get_replacement, validate_config_models,
     KNOWN_MODELS, ModelVersion, register_model,

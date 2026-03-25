@@ -1,7 +1,7 @@
 # ai-code-runner
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-1659%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-1784%20passing-brightgreen.svg)](#testing)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 
 **An external routing layer for OpenClaw coding tasks.** Classifies tasks, selects the right executor (Codex CLI, Claude Code, or OpenRouter), handles fallback, and logs everything.
@@ -316,7 +316,7 @@ openclaw-router/
 │   ├── architecture.md         # Full architecture spec
 │   └── runbooks.md             # Operational runbooks
 ├── tests/
-│   └── (67 test files, 1659 tests)
+│   └── (71 test files, 1784 tests)
 └── README.md                   # This file
 ```
 
@@ -347,7 +347,7 @@ pip3 install pytest
 python3 -m pytest tests/ -q
 ```
 
-Expected: `1659 passed`
+Expected: `1784 passed`
 
 ---
 
