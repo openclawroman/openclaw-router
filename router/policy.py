@@ -12,7 +12,7 @@ from .models import (
     Executor, ExecutorBackend, ModelProfile,
     CodexState, TaskRisk, TaskClass, TaskModality
 )
-from .state_store import StateStore
+from .state_store import StateStore, get_state_store
 from .executors import run_codex, run_claude, run_openrouter
 from .errors import ExecutorError, ELIGIBLE_FALLBACK_ERRORS, can_fallback, ChainInvariantViolation
 from .config_loader import get_model, get_reliability_config
@@ -88,7 +88,7 @@ def resolve_state(store: Optional[StateStore] = None) -> CodexState:
     Resolve the active Codex state.
     Priority: manual_state > auto_state > default (openai_primary)
     """
-    store = store or StateStore()
+    store = store or get_state_store()
     manual = store.get_manual_state()
     if manual is not None:
         return manual
