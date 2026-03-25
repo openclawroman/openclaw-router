@@ -144,3 +144,5 @@ class ExecutorResult:
     final_summary: Optional[str] = None
     trace_id: str = ""
     rate_limit_info: Optional[dict] = None  # Serialized RateLimitInfo
+    partial_success: bool = False
+    warnings: List[str] = field(default_factory=list)

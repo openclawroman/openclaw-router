@@ -231,6 +231,7 @@ class TestExecutorResult(unittest.TestCase):
             "normalized_error", "exit_code", "latency_ms", "request_id",
             "cost_estimate_usd", "artifacts", "stdout_ref", "stderr_ref",
             "final_summary", "trace_id", "rate_limit_info",
+            "partial_success", "warnings",
         }
         actual = set(vars(result).keys())
         self.assertEqual(actual, expected)
