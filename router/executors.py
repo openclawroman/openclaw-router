@@ -184,6 +184,7 @@ def run_codex_openrouter_minimax(meta: TaskMeta) -> ExecutorResult:
     task_id = meta.task_id or ""
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
+        filepath = _save_request_response(task_id, json.dumps({"error": "Missing OPENROUTER_API_KEY", "status": "auth_error"}, indent=2))
         return _make_result(
             task_id=task_id,
             tool="codex_cli",
@@ -192,6 +193,8 @@ def run_codex_openrouter_minimax(meta: TaskMeta) -> ExecutorResult:
             success=False,
             normalized_error="auth_error",
             exit_code=-1,
+            artifacts=[filepath],
+            stdout_ref=filepath,
         )
 
     return _openrouter_request(
@@ -212,6 +215,7 @@ def run_codex_openrouter_kimi(meta: TaskMeta) -> ExecutorResult:
     task_id = meta.task_id or ""
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
+        filepath = _save_request_response(task_id, json.dumps({"error": "Missing OPENROUTER_API_KEY", "status": "auth_error"}, indent=2))
         return _make_result(
             task_id=task_id,
             tool="codex_cli",
@@ -220,6 +224,8 @@ def run_codex_openrouter_kimi(meta: TaskMeta) -> ExecutorResult:
             success=False,
             normalized_error="auth_error",
             exit_code=-1,
+            artifacts=[filepath],
+            stdout_ref=filepath,
         )
 
     return _openrouter_request(
@@ -229,6 +235,14 @@ def run_codex_openrouter_kimi(meta: TaskMeta) -> ExecutorResult:
         backend="openrouter",
         model_profile="openrouter_kimi",
     )
+
+
+def _save_request_response(task_id: str, content: str) -> str:
+    """Save request/response content to /tmp/{task_id}.stdout.txt and return the path."""
+    filepath = f"/tmp/{task_id}.stdout.txt"
+    with open(filepath, "w") as f:
+        f.write(content)
+    return filepath
 
 
 def _openrouter_request(
@@ -244,11 +258,12 @@ def _openrouter_request(
     url = "https://openrouter.ai/api/v1/chat/completions"
     request_id = str(uuid.uuid4())
 
-    payload = json.dumps({
+    payload_dict = {
         "model": model,
         "messages": [{"role": "user", "content": meta.summary or task_id}],
         "max_tokens": 4000
-    }).encode('utf-8')
+    }
+    payload = json.dumps(payload_dict).encode('utf-8')
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -262,30 +277,27 @@ def _openrouter_request(
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=120) as response:
             latency_ms = int((time.time() - start) * 1000)
-            if response.status == 200:
-                return _make_result(
-                    task_id=task_id,
-                    tool=tool,
-                    backend=backend,
-                    model_profile=model_profile,
-                    success=True,
-                    exit_code=0,
-                    latency_ms=latency_ms,
-                    request_id=request_id,
-                )
-            else:
-                err_msg = f"HTTP {response.status}"
-                return _make_result(
-                    task_id=task_id,
-                    tool=tool,
-                    backend=backend,
-                    model_profile=model_profile,
-                    success=False,
-                    normalized_error=normalize_error(err_msg),
-                    exit_code=response.status,
-                    latency_ms=latency_ms,
-                    request_id=request_id,
-                )
+            body = response.read().decode("utf-8", errors="replace")
+            resp_data = json.loads(body) if body else {}
+            save_content = json.dumps({
+                "request": payload_dict,
+                "response": resp_data,
+                "latency_ms": latency_ms,
+                "request_id": request_id,
+            }, indent=2)
+            filepath = _save_request_response(task_id, save_content)
+            return _make_result(
+                task_id=task_id,
+                tool=tool,
+                backend=backend,
+                model_profile=model_profile,
+                success=True,
+                exit_code=0,
+                latency_ms=latency_ms,
+                request_id=request_id,
+                artifacts=[filepath],
+                stdout_ref=filepath,
+            )
     except urllib.error.HTTPError as e:
         latency_ms = int((time.time() - start) * 1000)
         body = e.read().decode("utf-8", errors="replace")
@@ -295,6 +307,16 @@ def _openrouter_request(
             norm_err = "rate_limited"
         elif e.code == 401:
             norm_err = "auth_error"
+        elif e.code == 503:
+            norm_err = "provider_unavailable"
+        save_content = json.dumps({
+            "request": payload_dict,
+            "error": body,
+            "status_code": e.code,
+            "latency_ms": latency_ms,
+            "request_id": request_id,
+        }, indent=2)
+        filepath = _save_request_response(task_id, save_content)
         return _make_result(
             task_id=task_id,
             tool=tool,
@@ -305,10 +327,18 @@ def _openrouter_request(
             exit_code=e.code,
             latency_ms=latency_ms,
             request_id=request_id,
+            artifacts=[filepath],
+            stdout_ref=filepath,
         )
     except urllib.error.URLError as e:
         latency_ms = int((time.time() - start) * 1000)
         err_msg = f"Request failed: {e.reason}"
+        save_content = json.dumps({
+            "request": payload_dict,
+            "error": str(e.reason),
+            "latency_ms": latency_ms,
+        }, indent=2)
+        filepath = _save_request_response(task_id, save_content)
         return _make_result(
             task_id=task_id,
             tool=tool,
@@ -318,6 +348,8 @@ def _openrouter_request(
             normalized_error=normalize_error(err_msg),
             exit_code=-1,
             latency_ms=latency_ms,
+            artifacts=[filepath],
+            stdout_ref=filepath,
         )
 
 
