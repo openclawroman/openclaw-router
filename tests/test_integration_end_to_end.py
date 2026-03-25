@@ -477,3 +477,56 @@ class TestNotificationsOnStateChange:
 
         alerts = notifier.get_recent_alerts()
         assert any(a["alert_type"] == "state_change" for a in alerts)
+
+
+# ===================================================================
+# EDGE CASE: Error propagation across the full chain
+# ===================================================================
+
+class TestEndToEndErrorPropagation:
+    """Errors from each executor propagate through the full chain."""
+
+    def test_error_history_across_full_chain(self, tmp_path, monkeypatch):
+        """All three providers fail → error_history has multiple entries."""
+        store, _, _ = _setup(tmp_path, monkeypatch)
+
+        meta = classify("Implement distributed consensus protocol")
+        meta.task_id = "err-prop-001"
+
+        codex_fail = _make_result("err-prop-001", success=False, error_type="provider_unavailable")
+        claude_fail = _make_result("err-prop-001", success=False, error_type="rate_limited")
+        openrouter_fail = _make_result("err-prop-001", success=False, error_type="quota_exhausted")
+
+        with patch("router.policy.run_codex", return_value=codex_fail), \
+             patch("router.policy.run_claude", return_value=claude_fail), \
+             patch("router.policy.run_openrouter", return_value=openrouter_fail):
+            decision, result = route_task(meta)
+
+        assert result.success is False
+        assert len(decision.error_history) >= 2
+        error_types = [e["error_type"] for e in decision.error_history]
+        assert "provider_unavailable" in error_types
+
+    def test_error_chain_with_successful_fallback(self, tmp_path, monkeypatch):
+        """First 2 fail, 3rd succeeds → error_history has failures, result is success."""
+        store, _, _ = _setup(tmp_path, monkeypatch)
+
+        meta = classify("Refactor microservice architecture")
+        meta.task_id = "err-chain-001"
+
+        codex_fail = _make_result("err-chain-001", success=False, error_type="provider_unavailable")
+        claude_fail = _make_result("err-chain-001", success=False, error_type="rate_limited")
+        openrouter_ok = _make_result("err-chain-001", success=True,
+                                       tool="codex_cli", backend="openrouter",
+                                       model_profile="openrouter_minimax", cost_usd=0.0055)
+
+        with patch("router.policy.run_codex", return_value=codex_fail), \
+             patch("router.policy.run_claude", return_value=claude_fail), \
+             patch("router.policy.run_openrouter", return_value=openrouter_ok):
+            decision, result = route_task(meta)
+
+        assert result.success is True
+        assert result.cost_estimate_usd == 0.0055
+        assert len(decision.error_history) == 2
+        assert decision.attempted_fallback is True
+        assert decision.fallback_count >= 1

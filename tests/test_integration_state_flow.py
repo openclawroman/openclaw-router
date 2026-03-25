@@ -16,6 +16,7 @@ from router.models import (
     ExecutorResult,
 )
 from router.state_store import StateStore, reset_state_store
+from router.classifier import classify
 from router.policy import (
     route_task, resolve_state, build_chain, reset_breaker, reset_notifier,
 )
@@ -504,3 +505,127 @@ class TestHistoryTrackingFlow:
         from datetime import datetime
         ts = datetime.fromisoformat(history[0]["timestamp"].replace("Z", "+00:00"))
         assert ts is not None
+
+
+# ===================================================================
+# EDGE CASE: Manual set → route → clear → route again
+# ===================================================================
+
+class TestManualSetRouteClearRoute:
+    """Set manual state, route a task, clear state, route again — different chain."""
+
+    def test_manual_set_route_clear_route_cycle(self, tmp_path, monkeypatch):
+        """Full cycle: manual claude_backup → route → clear → route again with openai_primary."""
+        store, _, _ = _setup_isolated_env(tmp_path, monkeypatch)
+
+        task = _make_task("cycle-001")
+
+        # Phase 1: Set manual to claude_backup, route
+        store.set_manual_state(CodexState.CLAUDE_BACKUP)
+        mock_claude = _make_result("cycle-001", tool="claude_code",
+                                    backend="anthropic", model_profile="claude_sonnet")
+        with patch("router.policy.run_claude", return_value=mock_claude):
+            d1, r1 = route_task(task)
+        assert d1.state == "claude_backup"
+        assert r1.tool == "claude_code"
+
+        # Phase 2: Clear manual state → default openai_primary
+        store.set_manual_state(None)
+        mock_codex = _make_result("cycle-001")
+        with patch("router.policy.run_codex", return_value=mock_codex):
+            d2, r2 = route_task(task)
+        assert d2.state == "openai_primary"
+        assert r2.tool == "codex_cli"
+
+
+# ===================================================================
+# EDGE CASE: WAL recovery then immediately route
+# ===================================================================
+
+class TestWALRecoveryThenRoute:
+    """Recover from WAL → immediately route a task → success."""
+
+    def test_wal_recovery_then_route(self, tmp_path, monkeypatch):
+        """Corrupt state, recover from WAL, then route a task on the recovered state."""
+        state_dir = tmp_path / "state"
+        runtime_dir = tmp_path / "runtime"
+        state_dir.mkdir()
+        runtime_dir.mkdir()
+
+        monkeypatch.setattr("router.state_store.MANUAL_STATE_PATH", state_dir / "manual.json")
+        monkeypatch.setattr("router.state_store.AUTO_STATE_PATH", state_dir / "auto.json")
+        monkeypatch.setattr("router.state_store.STATE_HISTORY_PATH", state_dir / "history.json")
+        monkeypatch.setattr("router.state_store.WAL_PATH", state_dir / "wal.jsonl")
+        monkeypatch.setattr("router.logger.RUNTIME_DIR", runtime_dir)
+        monkeypatch.setattr("router.logger.DEFAULT_LOG_PATH", runtime_dir / "routing.jsonl")
+        monkeypatch.setattr("router.notifications.NotificationManager.ALERTS_PATH", runtime_dir / "alerts.jsonl")
+
+        reset_state_store()
+        reset_breaker()
+        reset_notifier()
+
+        # Step 1: Set up initial state
+        store1 = StateStore(
+            manual_path=state_dir / "manual.json",
+            auto_path=state_dir / "auto.json",
+            history_path=state_dir / "history.json",
+            wal_path=state_dir / "wal.jsonl",
+        )
+        store1.set_manual_state(CodexState.OPENAI_PRIMARY)
+
+        # Step 2: Simulate crash — corrupt primary, leave WAL with uncommitted write
+        wal_path = state_dir / "wal.jsonl"
+        wal_path.write_text("")
+        corrupt_entry = json.dumps({
+            "action": "write",
+            "path": str(state_dir / "manual.json"),
+            "data": {"state": "claude_backup"},
+            "timestamp": "2025-06-01T00:00:00+00:00",
+        }) + "\n"
+        wal_path.write_text(corrupt_entry)
+        (state_dir / "manual.json").write_text("CORRUPTED")
+
+        # Step 3: New store recovers from WAL
+        store2 = StateStore(
+            manual_path=state_dir / "manual.json",
+            auto_path=state_dir / "auto.json",
+            history_path=state_dir / "history.json",
+            wal_path=state_dir / "wal.jsonl",
+        )
+        assert store2.get_manual_state() == CodexState.CLAUDE_BACKUP
+
+        # Step 4: Force singleton for route_task
+        import router.state_store as ss_mod
+        ss_mod._instance = store2
+
+        # Step 5: Route immediately — should use claude_backup (recovered state)
+        task = _make_task("wal-route-001")
+        mock = _make_result("wal-route-001", tool="claude_code",
+                             backend="anthropic", model_profile="claude_sonnet")
+        with patch("router.policy.run_claude", return_value=mock):
+            decision, result = route_task(task)
+
+        assert result.success is True
+        assert decision.state == "claude_backup"
+
+
+# ===================================================================
+# EDGE CASE: Unknown task class defaults gracefully
+# ===================================================================
+
+class TestUnknownTaskClass:
+    """Task with text that doesn\'t match any classifier keywords → defaults to IMPLEMENTATION."""
+
+    def test_unknown_class_defaults_to_implementation(self, tmp_path, monkeypatch):
+        """Ambiguous task text defaults to IMPLEMENTATION and routes normally."""
+        store, _, _ = _setup_isolated_env(tmp_path, monkeypatch)
+
+        meta = classify("xyzzy plugh nothing matches these keywords")
+        assert meta.task_class == TaskClass.IMPLEMENTATION
+
+        mock = _make_result(meta.task_id)
+        with patch("router.policy.run_codex", return_value=mock):
+            decision, result = route_task(meta)
+
+        assert result.success is True
+        assert decision.state == "openai_primary"

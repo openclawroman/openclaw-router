@@ -632,3 +632,221 @@ class TestRoutingCostTracking:
 
         assert result.success is True
         assert result.cost_estimate_usd == 0.0045
+
+
+# ===================================================================
+# EDGE CASE: Primary fails, fallback also fails
+# ===================================================================
+
+class TestFallbackBothFail:
+    """Primary fails → fallback triggers → fallback also fails → final error."""
+
+    def test_primary_fails_fallback_also_fails(self, tmp_path, monkeypatch):
+        """Codex fails → claude fallback also fails → result is failure with fallback metadata."""
+        state_dir = tmp_path / "state"
+        state_dir.mkdir()
+        monkeypatch.setattr("router.logger.RUNTIME_DIR", tmp_path / "runtime")
+        monkeypatch.setattr("router.logger.DEFAULT_LOG_PATH", tmp_path / "runtime" / "routing.jsonl")
+        monkeypatch.setattr("router.notifications.NotificationManager.ALERTS_PATH", tmp_path / "runtime" / "alerts.jsonl")
+        _patch_state_store(monkeypatch, state_dir)
+
+        task = TaskMeta(
+            task_id="both-fail-001", agent="coder",
+            task_class=TaskClass.IMPLEMENTATION, risk=TaskRisk.MEDIUM,
+            repo_path="/tmp/repo", cwd="/tmp/repo",
+            summary="Complex deployment automation",
+        )
+
+        codex_fail = _make_mock_result(
+            "both-fail-001", success=False, error_type="provider_unavailable",
+            tool="codex_cli", backend="openai_native", model_profile="codex_primary",
+        )
+        claude_fail = _make_mock_result(
+            "both-fail-001", success=False, error_type="quota_exhausted",
+            tool="claude_code", backend="anthropic", model_profile="claude_sonnet",
+        )
+
+        with patch("router.policy.run_codex", return_value=codex_fail), \
+             patch("router.policy.run_claude", return_value=claude_fail), \
+             patch("router.policy.run_openrouter", return_value=codex_fail):
+            decision, result = route_task(task)
+
+        assert result.success is False
+        assert decision.attempted_fallback is True
+        assert len(decision.error_history) >= 2
+        error_types = {e["error_type"] for e in decision.error_history}
+        assert "provider_unavailable" in error_types
+        assert "quota_exhausted" in error_types
+        assert decision.fallback_count >= 1
+
+
+# ===================================================================
+# EDGE CASE: Rate limit error triggers fallback
+# ===================================================================
+
+class TestRoutingWithRateLimit:
+    """Rate limit (429) → fallback eligible → fallback succeeds."""
+
+    def test_rate_limit_triggers_fallback(self, tmp_path, monkeypatch):
+        """Executor returns rate_limited → falls back to next provider."""
+        state_dir = tmp_path / "state"
+        state_dir.mkdir()
+        monkeypatch.setattr("router.logger.RUNTIME_DIR", tmp_path / "runtime")
+        monkeypatch.setattr("router.logger.DEFAULT_LOG_PATH", tmp_path / "runtime" / "routing.jsonl")
+        monkeypatch.setattr("router.notifications.NotificationManager.ALERTS_PATH", tmp_path / "runtime" / "alerts.jsonl")
+        _patch_state_store(monkeypatch, state_dir)
+
+        task = TaskMeta(
+            task_id="rl-001", agent="coder",
+            task_class=TaskClass.IMPLEMENTATION, risk=TaskRisk.MEDIUM,
+            repo_path="/tmp/repo", cwd="/tmp/repo",
+            summary="Implement webhook handler",
+        )
+
+        rate_limited = _make_mock_result(
+            "rl-001", success=False, error_type="rate_limited",
+            tool="codex_cli", backend="openai_native", model_profile="codex_primary",
+        )
+        success = _make_mock_result(
+            "rl-001", success=True, tool="claude_code",
+            backend="anthropic", model_profile="claude_sonnet",
+        )
+
+        with patch("router.policy.run_codex", return_value=rate_limited), \
+             patch("router.policy.run_claude", return_value=success):
+            decision, result = route_task(task)
+
+        assert result.success is True
+        assert result.tool == "claude_code"
+        assert decision.attempted_fallback is True
+        assert any(
+            e["error_type"] == "rate_limited" for e in decision.error_history
+        )
+
+    def test_rate_limit_is_fallback_eligible(self):
+        """Verify rate_limited is in the fallback-eligible set."""
+        from router.errors import can_fallback
+        assert can_fallback("rate_limited") is True
+
+
+# ===================================================================
+# EDGE CASE: Partial success prevents fallback
+# ===================================================================
+
+class TestPartialSuccessPreventsFallback:
+    """Executor returns partial_success=True → no fallback, result returned as-is."""
+
+    def test_partial_success_stops_fallback(self, tmp_path, monkeypatch):
+        """Partial success should NOT trigger fallback chain."""
+        state_dir = tmp_path / "state"
+        state_dir.mkdir()
+        monkeypatch.setattr("router.logger.RUNTIME_DIR", tmp_path / "runtime")
+        monkeypatch.setattr("router.logger.DEFAULT_LOG_PATH", tmp_path / "runtime" / "routing.jsonl")
+        monkeypatch.setattr("router.notifications.NotificationManager.ALERTS_PATH", tmp_path / "runtime" / "alerts.jsonl")
+        _patch_state_store(monkeypatch, state_dir)
+
+        task = TaskMeta(
+            task_id="partial-001", agent="coder",
+            task_class=TaskClass.IMPLEMENTATION, risk=TaskRisk.MEDIUM,
+            repo_path="/tmp/repo", cwd="/tmp/repo",
+            summary="Refactor database layer",
+        )
+
+        partial = ExecutorResult(
+            task_id="partial-001",
+            tool="codex_cli", backend="openai_native", model_profile="codex_primary",
+            success=False,
+            partial_success=True,
+            normalized_error="provider_unavailable",
+            exit_code=1, latency_ms=200,
+            cost_estimate_usd=0.001,
+            final_summary="Completed 2/3 subtasks",
+        )
+
+        claude_mock = _make_mock_result("partial-001", success=True, tool="claude_code",
+                                          backend="anthropic", model_profile="claude_sonnet")
+
+        with patch("router.policy.run_codex", return_value=partial), \
+             patch("router.policy.run_claude", return_value=claude_mock):
+            decision, result = route_task(task)
+
+        assert result.partial_success is True
+        assert result.tool == "codex_cli"
+        assert decision.attempted_fallback is False
+
+
+# ===================================================================
+# EDGE CASE: Cost preserved across fallbacks
+# ===================================================================
+
+class TestCostPreservedAcrossFallbacks:
+    """Failed attempts have zero cost; final result has real cost."""
+
+    def test_cost_from_winning_executor(self, tmp_path, monkeypatch):
+        """After fallback, cost comes from the successful executor."""
+        state_dir = tmp_path / "state"
+        state_dir.mkdir()
+        monkeypatch.setattr("router.logger.RUNTIME_DIR", tmp_path / "runtime")
+        monkeypatch.setattr("router.logger.DEFAULT_LOG_PATH", tmp_path / "runtime" / "routing.jsonl")
+        monkeypatch.setattr("router.notifications.NotificationManager.ALERTS_PATH", tmp_path / "runtime" / "alerts.jsonl")
+        _patch_state_store(monkeypatch, state_dir)
+
+        task = TaskMeta(
+            task_id="cost-pres-001", agent="coder",
+            task_class=TaskClass.IMPLEMENTATION, risk=TaskRisk.MEDIUM,
+            repo_path="/tmp/repo", cwd="/tmp/repo",
+            summary="Implement caching layer",
+        )
+
+        failed = _make_mock_result("cost-pres-001", success=False, error_type="provider_unavailable")
+        succeeded = _make_mock_result("cost-pres-001", success=True, cost_usd=0.0067,
+                                       tool="claude_code", backend="anthropic", model_profile="claude_sonnet")
+
+        with patch("router.policy.run_codex", return_value=failed), \
+             patch("router.policy.run_claude", return_value=succeeded):
+            _, result = route_task(task)
+
+        assert result.success is True
+        assert result.cost_estimate_usd == 0.0067
+
+
+# ===================================================================
+# EDGE CASE: Error history accumulates across fallback
+# ===================================================================
+
+class TestErrorHistoryAccumulatesAcrossFallback:
+    """Each failed attempt adds to error_history in RouteDecision."""
+
+    def test_error_history_accumulates(self, tmp_path, monkeypatch):
+        """Three providers fail, then one succeeds → error_history has all failures."""
+        state_dir = tmp_path / "state"
+        state_dir.mkdir()
+        monkeypatch.setattr("router.logger.RUNTIME_DIR", tmp_path / "runtime")
+        monkeypatch.setattr("router.logger.DEFAULT_LOG_PATH", tmp_path / "runtime" / "routing.jsonl")
+        monkeypatch.setattr("router.notifications.NotificationManager.ALERTS_PATH", tmp_path / "runtime" / "alerts.jsonl")
+        _patch_state_store(monkeypatch, state_dir)
+
+        task = TaskMeta(
+            task_id="err-hist-001", agent="coder",
+            task_class=TaskClass.IMPLEMENTATION, risk=TaskRisk.MEDIUM,
+            repo_path="/tmp/repo", cwd="/tmp/repo",
+            summary="Deploy microservice",
+        )
+
+        fail_quota = _make_mock_result("err-hist-001", success=False, error_type="quota_exhausted",
+                                        tool="codex_cli")
+        fail_rate = _make_mock_result("err-hist-001", success=False, error_type="rate_limited",
+                                       tool="claude_code")
+        success = _make_mock_result("err-hist-001", success=True,
+                                     tool="codex_cli", backend="openrouter", model_profile="openrouter_minimax")
+
+        with patch("router.policy.run_codex", return_value=fail_quota), \
+             patch("router.policy.run_claude", return_value=fail_rate), \
+             patch("router.policy.run_openrouter", return_value=success):
+            decision, result = route_task(task)
+
+        assert result.success is True
+        assert len(decision.error_history) >= 2
+        error_types = [e["error_type"] for e in decision.error_history]
+        assert "quota_exhausted" in error_types
+        assert "rate_limited" in error_types
