@@ -290,6 +290,81 @@ print(f'Top errors: {report.most_common_errors[:5]}')
 
 **Verification:** The commands should produce output without errors. The quality report should show non-zero totals if routes have been logged.
 
+### Structured Logging — routing_trace Format
+
+Since PR #33, each routing decision writes a structured `routing_trace` entry to `runtime/routing.jsonl`:
+
+```bash
+python3 -c "
+import json
+with open('runtime/routing.jsonl') as f:
+    for line in f:
+        entry = json.loads(line)
+        if entry.get('type') == 'routing_trace':
+            print(f\"trace={entry['trace_id']} task={entry['task_id']} state={entry['state']} \"
+                  f\"attempts={len(entry['attempts'])} success={entry['final_success']} \"
+                  f\"latency={entry['total_latency_ms']}ms\")
+            for a in entry['attempts']:
+                skipped = ' [SKIPPED]' if a.get('skipped') else ''
+                print(f\"  {a['tool']}/{a['backend']} {a['model_profile']}: \"
+                      f\"success={a['success']} latency={a.get('latency_ms',0)}ms{skipped}\")
+"
+```
+
+### Metrics Aggregation
+
+Generate an aggregated metrics report from routing logs:
+
+```bash
+# Last 24 hours (default)
+python3 bin/ai-code-runner --metrics
+
+# Last 48 hours
+python3 bin/ai-code-runner --metrics --metrics-period 48
+```
+
+Output includes: total_tasks, success_rate, by_state (task_count, avg_latency_ms), by_model (call_count, success_rate, cost), by_provider (call_count, skip_count), circuit_breaker_skips, chain_timeouts.
+
+### State History
+
+View recent state transitions:
+
+```bash
+python3 -c "
+from router.state_store import StateStore
+store = StateStore()
+for t in store.get_state_history(limit=10):
+    print(f\"{t['timestamp']}  {t.get('from','init'):20} → {t['to']:20}  [{t['reason']}]\")
+"
+```
+
+### Anti-Flap Protection
+
+The router blocks state transitions that happen within 5 minutes of the last transition (anti-flap). Emergency targets (openai_primary, claude_backup) are always allowed:
+
+```bash
+python3 -c "
+from router.state_store import StateStore
+from router.models import CodexState
+store = StateStore()
+allowed, reason = store.can_transition(CodexState.OPENAI_CONSERVATION)
+print(f'Allowed: {allowed}, reason: {reason}')
+"
+```
+
+Force a transition (bypasses anti-flap):
+```python
+store.set_state_with_history(CodexState.OPENAI_CONSERVATION, reason='emergency', force=True)
+```
+
+### Trace ID Correlation
+
+Use trace IDs to correlate logs across fallback attempts:
+
+```bash
+grep "trace_id=abc123" runtime/routing.jsonl
+```
+
 ---
 
 ## 5. End-to-End Dry Runs
