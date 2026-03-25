@@ -429,7 +429,7 @@ def run_claude(meta: TaskMeta, *, model: Optional[str] = None) -> ExecutorResult
 
 def run_openrouter(
     meta: TaskMeta,
-    model: str = None,
+    model: Optional[str] = None,
     profile: str = "openrouter_minimax",
 ) -> ExecutorResult:
     """Run OpenRouter API call with specified model."""
