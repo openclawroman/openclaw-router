@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field, asdict
+from .secrets import redact_dict
 
 
 @dataclass
@@ -60,9 +61,6 @@ class RoutingTrace:
         if self.final_error:
             d["final_error"] = self.final_error
         return d
-
-
-from .secrets import redact_dict
 
 
 class AttemptLogger:

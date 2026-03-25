@@ -349,7 +349,7 @@ def _openrouter_request(
         err_msg = f"Request failed: {sanitize_secrets(str(e.reason))}"
         save_content = json.dumps({
             "request": payload_dict,
-            "error": str(e.reason),
+            "error": sanitize_secrets(str(e.reason)),
             "latency_ms": latency_ms,
         }, indent=2)
         filepath = _save_request_response(task_id, save_content)
