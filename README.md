@@ -38,7 +38,7 @@
 
 - **Zero external dependencies** — pure Python 3.10+ stdlib (only `pytest` for tests)
 - **JSON in, JSON out** — pipe-friendly `stdin`/`stdout` protocol
-- **Stateful routing** — adapts executor chain based on recent failure history
+- **Subscription-aware routing** — 4-state system that maximizes paid subscription buckets before falling back to raw API usage
 - **Structured logging** — every routing decision logged to JSONL
 
 ---
@@ -60,68 +60,95 @@ OpenClaw controls **what** to do. `ai-code-runner` controls **how** to do it.
 
 ### State Machine
 
-The router operates in two states based on recent execution history:
+The router uses a 4-state subscription-aware architecture. The primary state machine optimizes for **subscription buckets** — use already-paid capacity before paying for raw API usage.
 
-| State | Chain (in priority order) | Condition |
-|-------|---------------------------|-----------|
-| **normal** | `codex_cli:openai_native` → `claude_code:anthropic` → `codex_cli:openrouter` | Default — Codex-native is healthy |
-| **last10** | `claude_code:anthropic` → `codex_cli:openrouter` | Codex-native had failures in last 10 runs — skip it |
+```
+openai_primary
+    ↓ (budget pressure: approaching weekly limit, rate warnings, manual switch)
+openai_conservation
+    ↓ (OpenAI exhausted, repeated rate_limited/quota_exhausted)
+claude_backup
+    ↓ (Claude unavailable, unauthed, disabled)
+openrouter_fallback
+```
 
-**Transitions:**
+#### openai_primary (default)
+**Goal:** Maximize Codex subscription usage.
+**Chain:** Codex CLI → Claude Code → OpenRouter
+**Model selection:** gpt-5.4 for critical/debug/architecture, gpt-5.4-mini for everything else.
 
-- **normal → last10**: Triggered when `codex_cli:openai_native` hits a fallback-eligible error threshold
-- **last10 → normal**: Triggered after Claude Code succeeds and a cooldown period elapses
+#### openai_conservation
+**Goal:** Stay in OpenAI lane but conserve subscription quota.
+**Chain:** Codex CLI → OpenRouter → Claude Code
+**Model selection:** gpt-5.4-mini for almost everything, gpt-5.4 only for planner/final-review/high-risk.
+
+#### claude_backup
+**Goal:** Use Claude Code subscription before paying OpenRouter.
+**Chain:** Claude Code → OpenRouter
+**Model selection:** claude-sonnet-4.6 by default, claude-opus-4.6 for hardest cases.
+
+#### openrouter_fallback
+**Goal:** Last resort paid usage.
+**Chain:** OpenRouter only
+**Model selection:** minimax default, mimo for hardest tasks, kimi for visual/multimodal.
+
+#### State Transitions
+
+| From | To | Trigger |
+|------|----|---------|
+| openai_primary | openai_conservation | Manual switch, approaching quota, rate pressure |
+| openai_conservation | claude_backup | OpenAI exhausted, repeated rate_limited/quota_exhausted |
+| claude_backup | openrouter_fallback | Claude unavailable, unauthed, or disabled |
+| Any | Any | Hard failure override (auth error, provider outage) |
 
 ---
 
 ## Executors
 
-| # | Tool | Backend | Model/Profile | Role |
-|---|------|---------|---------------|------|
-| 1a | `codex_cli` | `openai_native` | **gpt-5.4** | **Heavy lane** — planning, hard debugging, risky multi-file work, final judgment |
-| 1b | `codex_cli` | `openai_native` | **gpt-5.4-mini** | **Light lane** — code search, reading files, docs, simple fixes, cheap tasks |
-| 2 | `claude_code` | `anthropic` | Claude | **Secondary** in normal, **primary** in last10 — high-quality code generation |
-| 3 | `codex_cli` | `openrouter` | minimax (config-driven) | **Open-source lane** — default fallback for broad compatibility |
-| 4 | `codex_cli` | `openrouter` | kimi (config-driven) | **Multimodal specialist** — screenshots, image analysis, swarm tasks |
-
-> **OpenAI profile selection** — `choose_openai_profile(task)` picks gpt-5.4 when `risk=critical`, `task_class=debug`, or `task_class=repo_architecture_change`. Everything else gets gpt-5.4-mini.
+| # | Tool | Backend | Model/Profile | State | Role |
+|---|------|---------|---------------|-------|------|
+| 1a | `codex_cli` | `openai_native` | **gpt-5.4** | openai_primary | **Heavy lane** — planning, hard debugging, risky work, final judgment |
+| 1b | `codex_cli` | `openai_native` | **gpt-5.4-mini** | openai_primary/conservation | **Light lane** — code search, reading, docs, simple fixes |
+| 2a | `claude_code` | `anthropic` | **claude-sonnet-4.6** | claude_backup | **Backup lane** — default Claude coding executor |
+| 2b | `claude_code` | `anthropic` | **claude-opus-4.6** | claude_backup | **Hard Claude** — critical/architecture when Claude is primary |
+| 3 | `codex_cli` | `openrouter` | minimax (config-driven) | any state | **Default fallback** — broad compatibility, low cost |
+| 4 | `codex_cli` | `openrouter` | mimo (config-driven) | openrouter_fallback | **Orchestrator brain** — hardest tasks, 1M context |
+| 5 | `codex_cli` | `openrouter` | kimi (config-driven) | openrouter_fallback | **Visual specialist** — screenshots, image analysis |
 
 > **Model strings are config-driven** — all model names live in `config/router.config.json` under `models`. To swap a model, edit one line there. No code changes needed. See [Changing Models](#changing-models).
 
 Executor selection depends on:
 
-- Current router state (`normal` vs `last10`)
+- Current router state (see [State Machine](#state-machine))
 - Task modality (`text`, `image`, `video`, `mixed`)
 - Task flags (`has_screenshots`, `requires_multimodal`, `swarm`)
-- Previous failures in the chain
+- Subscription budget and rate signals
 
 ### Changing Models
 
-All model strings live in **one place**: `config/router.config.json` under the `models` section.
+All model strings live in `config/router.config.json`. One line, one file.
 
 ```json
 {
   "models": {
     "openrouter": {
       "minimax": "minimax/minimax-m2.7",
-      "kimi": "moonshotai/kimi-k2.5"
+      "kimi": "moonshotai/kimi-k2.5",
+      "mimo": "xiaomi/mimo-v2-pro"
     },
     "codex": {
       "gpt54": "gpt-5.4",
       "gpt54_mini": "gpt-5.4-mini"
+    },
+    "claude": {
+      "sonnet": "claude-sonnet-4.6",
+      "opus": "claude-opus-4.6"
     }
   }
 }
 ```
 
-To swap a model (e.g. when a new version releases), edit **one line** in this file. Both `policy.py` and `executors.py` read models via `get_model()` from `router/config_loader.py` — no code changes needed.
-
-```bash
-# Example: upgrade minimax to v3.0
-# Edit config/router.config.json:
-#   "minimax": "minimax/minimax-m3.0"
-# Done.
-```
+No code changes. No restart needed.
 
 ---
 
@@ -155,7 +182,7 @@ Returned after routing. Describes the executor chain and routing rationale.
 | Field | Type | Description |
 |-------|------|-------------|
 | `task_id` | `str` | Task identifier |
-| `state` | `str` | Router state: `normal` or `last10` |
+| `state` | `str` | Router state: `openai_primary`, `openai_conservation`, `claude_backup`, or `openrouter_fallback` |
 | `chain` | `list[ChainEntry]` | Ordered list of executor entries to try |
 | `reason` | `str` | Human-readable routing explanation |
 | `attempted_fallback` | `bool` | Whether fallback was triggered |
@@ -246,10 +273,10 @@ openclaw-router/
 │   ├── __init__.py             # Package exports
 │   ├── models.py               # TaskMeta, RouteDecision, ExecutorResult, ChainEntry
 │   ├── classifier.py           # classify() — keyword-based task classification
-│   ├── policy.py               # route_task(), build_chain(), get_review_chain(), merge_gate()
+│   ├── policy.py               # Routing policy — 4-state chain builders, model selection per lane
 │   ├── executors.py            # run_codex(), run_claude(), run_openrouter()
 │   ├── errors.py               # normalize_error(), error classes, fallback eligibility
-│   ├── state_store.py          # StateStore — manual/auto state files
+│   ├── state_store.py          # Persistent state store — manual/auto layers, budget signal tracking
 │   ├── logger.py               # RoutingLogger — JSONL event logging
 │   ├── telemetry.py            # RouteQualityReporter — routing quality metrics
 │   ├── config_loader.py        # get_model() — config-driven model strings
@@ -363,7 +390,12 @@ cat config/codex_auto_state.json | python3 -m json.tool
 
 # Manual override (if set)
 cat config/codex_manual_state.json | python3 -m json.tool
+
+# Current state via Python
+python3 -c "from router.policy import resolve_state; print(f'State: {resolve_state().value}')"
 ```
+
+Valid states: `openai_primary`, `openai_conservation`, `claude_backup`, `openrouter_fallback`
 
 > 📖 Full operational guides in [Runbooks](docs/runbooks.md)
 

@@ -48,43 +48,92 @@ python3 -m pytest tests/ -q && echo "SMOKE TEST PASSED" || echo "SMOKE TEST FAIL
 
 ## 2. Manual State Override
 
-The router uses a state system (`normal` or `last10`) to control fallback behavior. You can manually override the state without changing code.
+The router uses a 4-state subscription-aware system. You can manually override the state or let the router manage it automatically. (Previously the system used `normal` and `last10` states — these have been superseded by the 4-state architecture.)
 
-### Switch to `last10`
-
-Create or edit the state file to force `last10` mode (Claude-first, no Codex primary):
+### How to Enter Conservation Mode
 
 ```bash
-mkdir -p runtime
-echo '{"manual_state": "last10"}' > runtime/state.json
+# Manual switch via state file
+echo '{"state": "openai_conservation"}' > config/codex_manual_state.json
 ```
 
-### Switch Back to `normal`
+### How to Switch to Claude Backup
+
+```bash
+echo '{"state": "claude_backup"}' > config/codex_manual_state.json
+```
+
+### How to Switch to OpenRouter Fallback
+
+```bash
+echo '{"state": "openrouter_fallback"}' > config/codex_manual_state.json
+```
+
+### How to Return to Primary
+
+```bash
+echo '{"state": "openai_primary"}' > config/codex_manual_state.json
+```
+
+### Clear Manual Override
 
 Remove the manual override to return to automatic state resolution:
 
 ```bash
-rm -f runtime/state.json
-```
-
-Or explicitly set it:
-
-```bash
-echo '{"manual_state": "normal"}' > runtime/state.json
+rm -f config/codex_manual_state.json
 ```
 
 ### Verify Current State
 
-You can check the current state programmatically:
-
 ```bash
+# Check auto state
+cat config/codex_auto_state.json | python3 -m json.tool
+
+# Check manual override (if set)
+cat config/codex_manual_state.json | python3 -m json.tool
+
+# Programmatic check
 python3 -c "
 from router.policy import resolve_state
 print(f'Current state: {resolve_state().value}')
 "
 ```
 
-**Verification:** The output should show `last10` or `normal` as expected.
+**Valid states:** `openai_primary`, `openai_conservation`, `claude_backup`, `openrouter_fallback`
+
+---
+
+## 3. Automatic State Transitions
+
+### What Happens When OpenAI Rate Limits Hit
+
+The router detects `rate_limited` errors from the OpenAI backend. Behavior depends on frequency:
+
+1. **Single rate limit**: Tries next executor in the chain (fallback within current state)
+2. **Repeated rate limits**: Can auto-transition from `openai_primary` → `openai_conservation`
+3. **Persistent exhaustion**: Escalates from `openai_conservation` → `claude_backup`
+
+The router uses **sticky state** — it won't bounce back to `openai_primary` after one success. A sustained cooldown period or manual override is required.
+
+### What Happens When Claude Is Unavailable
+
+The router tracks Claude Code health in `runtime/claude_health.json`. When Claude degrades:
+
+1. If in `claude_backup` state: auto-transitions to `openrouter_fallback`
+2. If in `openai_primary` or `openai_conservation`: Claude is skipped in the chain, OpenRouter handles fallback
+3. Recovery: When Claude health improves, the router can restore Claude in chains (but won't auto-escalate back to `claude_backup` state)
+
+### Budget Pressure Signals
+
+The router monitors these signals for automatic transitions:
+
+- `rate_limited` — Provider returned 429
+- `quota_exhausted` — Provider returned 402 or quota exceeded
+- `auth_error` — Authentication failure
+- Task count per provider (rolling window)
+- Time-since-last-success
+
+**Note:** Manual override always takes precedence over automatic transitions.
 
 ---
 
@@ -245,14 +294,14 @@ print(f'Top errors: {report.most_common_errors[:5]}')
 
 ## 5. End-to-End Dry Runs
 
-### Dry Run 1: Normal State Routing
+### Dry Run 1: OpenAI Primary State Routing
 
-Simulate a routing decision in normal state:
+Simulate a routing decision in openai_primary state:
 
 ```bash
 python3 -c "
 from router.models import TaskMeta, TaskClass, TaskRisk, TaskModality
-from router.policy import build_chain, CodexState
+from router.policy import build_chain, RouterState
 
 task = TaskMeta(
     task_id='dry-001',
@@ -262,11 +311,11 @@ task = TaskMeta(
     modality=TaskModality.TEXT,
     summary='add a hello world function',
 )
-chain = build_chain(task, CodexState.NORMAL)
-print('Chain:')
+chain = build_chain(task, RouterState.OPENAI_PRIMARY)
+print('Chain (openai_primary):')
 for i, entry in enumerate(chain):
     print(f'  {i+1}. {entry.tool}:{entry.backend} ({entry.model_profile})')
-assert len(chain) == 3, 'Normal chain should have 3 entries'
+assert len(chain) == 3, 'Primary chain should have 3 entries'
 assert chain[0].tool == 'codex_cli', 'First entry should be codex_cli'
 assert chain[1].tool == 'claude_code', 'Second entry should be claude_code'
 print('DRY RUN 1 PASSED')
@@ -275,12 +324,12 @@ print('DRY RUN 1 PASSED')
 
 **Verification:** Output shows 3-entry chain starting with `codex_cli:openai_native`, and ends with "DRY RUN 1 PASSED".
 
-### Dry Run 2: Last10 State Routing
+### Dry Run 2: Claude Backup State Routing
 
 ```bash
 python3 -c "
 from router.models import TaskMeta, TaskClass, TaskRisk, TaskModality
-from router.policy import build_chain, CodexState
+from router.policy import build_chain, RouterState
 
 task = TaskMeta(
     task_id='dry-002',
@@ -290,19 +339,46 @@ task = TaskMeta(
     modality=TaskModality.TEXT,
     summary='fix null pointer error',
 )
-chain = build_chain(task, CodexState.LAST10)
-print('Chain (last10):')
+chain = build_chain(task, RouterState.CLAUDE_BACKUP)
+print('Chain (claude_backup):')
 for i, entry in enumerate(chain):
     print(f'  {i+1}. {entry.tool}:{entry.backend} ({entry.model_profile})')
-assert len(chain) == 2, 'Last10 chain should have 2 entries'
-assert chain[0].tool == 'claude_code', 'Last10 first entry should be claude_code'
+assert len(chain) == 2, 'Claude backup chain should have 2 entries'
+assert chain[0].tool == 'claude_code', 'Claude backup first entry should be claude_code'
 print('DRY RUN 2 PASSED')
 "
 ```
 
 **Verification:** Output shows 2-entry chain starting with `claude_code:anthropic`, and ends with "DRY RUN 2 PASSED".
 
-### Dry Run 3: Logging Round-Trip
+### Dry Run 3: OpenRouter Fallback State Routing
+
+```bash
+python3 -c "
+from router.models import TaskMeta, TaskClass, TaskRisk, TaskModality
+from router.policy import build_chain, RouterState
+
+task = TaskMeta(
+    task_id='dry-003',
+    agent='coder',
+    task_class=TaskClass.IMPLEMENTATION,
+    risk=TaskRisk.LOW,
+    modality=TaskModality.TEXT,
+    summary='simple task',
+)
+chain = build_chain(task, RouterState.OPENROUTER_FALLBACK)
+print('Chain (openrouter_fallback):')
+for i, entry in enumerate(chain):
+    print(f'  {i+1}. {entry.tool}:{entry.backend} ({entry.model_profile})')
+assert len(chain) == 1, 'OpenRouter fallback chain should have 1 entry'
+assert chain[0].backend == 'openrouter', 'Should route through openrouter'
+print('DRY RUN 3 PASSED')
+"
+```
+
+**Verification:** Output shows 1-entry chain through OpenRouter, and ends with "DRY RUN 3 PASSED".
+
+### Dry Run 4: Logging Round-Trip
 
 Test that the logger writes and the reporter reads correctly:
 
@@ -317,14 +393,14 @@ log_path = Path('/tmp/dry-run-routing.jsonl')
 log_path.unlink(missing_ok=True)
 
 logger = RoutingLogger(log_path=log_path)
-task = TaskMeta(task_id='dry-003', agent='coder', task_class=TaskClass.IMPLEMENTATION, summary='dry run test')
+task = TaskMeta(task_id='dry-004', agent='coder', task_class=TaskClass.IMPLEMENTATION, summary='dry run test')
 decision = RouteDecision(
-    task_id='dry-003', state='normal',
+    task_id='dry-004', state='openai_primary',
     chain=[ChainEntry(tool='codex_cli', backend='openai_native', model_profile='codex_primary')],
     reason='dry run', attempted_fallback=False,
 )
 result = ExecutorResult(
-    task_id='dry-003', tool='codex_cli', backend='openai_native',
+    task_id='dry-004', tool='codex_cli', backend='openai_native',
     model_profile='codex_primary', success=True, latency_ms=500,
     cost_estimate_usd=0.01,
 )
@@ -336,15 +412,15 @@ assert report.total_routes == 1
 assert report.success_count == 1
 assert report.overall_success_rate == 1.0
 assert report.total_cost_usd == 0.01
-print('DRY RUN 3 PASSED')
+print('DRY RUN 4 PASSED')
 
 log_path.unlink(missing_ok=True)
 "
 ```
 
-**Verification:** Script prints "DRY RUN 3 PASSED" with no errors.
+**Verification:** Script prints "DRY RUN 4 PASSED" with no errors.
 
-### Dry Run 4: Fallback Eligibility
+### Dry Run 5: Fallback Eligibility
 
 ```bash
 python3 -c "
@@ -359,8 +435,8 @@ for err in ineligible:
     assert not can_fallback(err), f'{err} should NOT be eligible'
 
 print(f'Tested {len(eligible)} eligible + {len(ineligible)} ineligible error types')
-print('DRY RUN 4 PASSED')
+print('DRY RUN 5 PASSED')
 "
 ```
 
-**Verification:** Script prints "DRY RUN 4 PASSED" confirming fallback logic works correctly.
+**Verification:** Script prints "DRY RUN 5 PASSED" confirming fallback logic works correctly.
