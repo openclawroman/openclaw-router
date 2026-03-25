@@ -3,6 +3,8 @@
 import re
 from typing import Optional
 
+from .secrets import sanitize_secrets
+
 
 class RouterError(Exception):
     """Base exception for router errors."""
@@ -292,7 +294,8 @@ def normalize_error(raw) -> str:
     if not isinstance(raw, str):
         raw = str(raw)
 
-    msg = raw.lower().strip()
+    # Sanitize secrets before pattern matching
+    msg = sanitize_secrets(raw.lower().strip())
 
     # Direct match against known error types
     if msg in NORMALIZED_ERROR_TYPES:
