@@ -18,6 +18,7 @@ STATE_HISTORY_PATH = CONFIG_DIR / "codex_state_history.json"
 WAL_PATH = CONFIG_DIR / "codex_state_wal.jsonl"
 MAX_HISTORY_ENTRIES = 50
 MIN_STATE_DURATION_S = 300  # 5 minutes minimum in a state
+CONSECUTIVE_SUCCESSES_THRESHOLD = 3  # consecutive successes required before recovery to primary
 
 # All 4-state transitions are valid (subscription ladder)
 VALID_STATE_TRANSITIONS = {
@@ -57,6 +58,7 @@ class StateStore:
         self.auto_path = Path(auto_path) if auto_path else AUTO_STATE_PATH
         self.history_path = Path(history_path) if history_path else self.manual_path.parent / "codex_state_history.json"
         self.wal_path = Path(wal_path) if wal_path else WAL_PATH
+        self._success_counter: dict[str, int] = {}  # state value -> consecutive success count
         self.recover_from_wal()
         self._ensure_state_files()
 
@@ -320,17 +322,51 @@ class StateStore:
             return []
 
     # -------------------------------------------------------------------------
+    # Sticky state — success-count threshold for recovery
+    # -------------------------------------------------------------------------
+
+    def record_success(self, state: CodexState, success: bool) -> None:
+        """Record a success or failure for sticky-state tracking.
+
+        On success, increment the consecutive success counter for the state.
+        On failure, reset it to 0.
+        """
+        key = state.value
+        if success:
+            self._success_counter[key] = self._success_counter.get(key, 0) + 1
+        else:
+            self._success_counter[key] = 0
+
+    def can_recover_to_primary(self, state: CodexState) -> bool:
+        """Check if enough consecutive successes have been recorded to allow recovery to primary."""
+        key = state.value
+        count = self._success_counter.get(key, 0)
+        return count >= CONSECUTIVE_SUCCESSES_THRESHOLD
+
+    def reset_success_counter(self, state: CodexState) -> None:
+        """Reset the consecutive success counter for a state."""
+        self._success_counter[state.value] = 0
+
+    # -------------------------------------------------------------------------
     # Anti-flap protection
     # -------------------------------------------------------------------------
 
-    def can_transition(self, new_state: CodexState) -> tuple[bool, str]:
-        """Check if a state transition is allowed (anti-flap).
+    def can_transition(self, new_state: CodexState, force: bool = False) -> tuple[bool, str]:
+        """Check if a state transition is allowed (anti-flap + sticky state).
 
         Returns (allowed, reason).
+
+        Args:
+            new_state: The target state.
+            force: If True, bypass all checks (emergency override).
         """
         current = self.get_state()
         if current == new_state:
             return True, "same_state"
+
+        # Force bypasses everything
+        if force:
+            return True, "emergency_override_forced"
 
         # Allow emergency overrides (any state → openai_primary or claude_backup is always OK)
         emergency_targets = {CodexState.OPENAI_PRIMARY, CodexState.CLAUDE_BACKUP}
