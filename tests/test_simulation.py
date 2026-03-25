@@ -62,7 +62,7 @@ def _make_mock_executors(config: MockExecutorConfig):
         entry = ChainEntry(tool="codex_cli", backend="openai_native", model_profile="codex_primary")
         return config.get_result(entry, task)
 
-    def mock_run_claude(task):
+    def mock_run_claude(task, *, model=None):
         entry = ChainEntry(tool="claude_code", backend="anthropic", model_profile="claude_primary")
         return config.get_result(entry, task)
 
@@ -168,7 +168,7 @@ class TestSimulation:
         assert result.success
         assert result.tool == "claude_code"
         assert result.backend == "anthropic"
-        assert decision.state == "last10"
+        assert decision.state == "claude_backup"
 
     def test_scenario_5_last10_fallback_openrouter(self, monkeypatch):
         """Claude fails in last10 → openrouter succeeds."""

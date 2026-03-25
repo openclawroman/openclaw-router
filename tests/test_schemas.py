@@ -63,9 +63,14 @@ class TestTaskRiskEnum(unittest.TestCase):
 
 class TestCodexStateEnum(unittest.TestCase):
     def test_state_values(self):
-        expected = {"normal", "last10"}
+        expected = {"openai_primary", "openai_conservation", "claude_backup", "openrouter_fallback"}
         actual = {s.value for s in CodexState}
         self.assertEqual(actual, expected)
+
+    def test_backward_compat_aliases(self):
+        """NORMAL and LAST10 still work as aliases."""
+        self.assertEqual(CodexState.NORMAL, CodexState.OPENAI_PRIMARY)
+        self.assertEqual(CodexState.LAST10, CodexState.CLAUDE_BACKUP)
 
 
 class TestTaskMeta(unittest.TestCase):
@@ -266,7 +271,7 @@ class TestConfigLoading(unittest.TestCase):
 
     def test_state_config(self):
         state = self.config["state"]
-        self.assertEqual(state["default"], "normal")
+        self.assertEqual(state["default"], "openai_primary")
         self.assertIn("manual_state_file", state)
         self.assertIn("auto_state_file", state)
         self.assertIn("claude_health_file", state)

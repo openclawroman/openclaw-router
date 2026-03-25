@@ -20,19 +20,19 @@ from .config_loader import get_model
 # State helpers
 # ---------------------------------------------------------------------------
 
-def resolve_state() -> CodexState:
+def resolve_state(store: Optional[StateStore] = None) -> CodexState:
     """
     Resolve the active Codex state.
-    Priority: manual_state > auto_state > default (normal)
+    Priority: manual_state > auto_state > default (openai_primary)
     """
-    store = StateStore()
+    store = store or StateStore()
     manual = store.get_manual_state()
     if manual is not None:
         return manual
     auto = store.get_auto_state()
     if auto is not None:
         return auto
-    return CodexState.NORMAL
+    return CodexState.OPENAI_PRIMARY
 
 
 def claude_available() -> bool:
@@ -52,10 +52,12 @@ def claude_available() -> bool:
 def choose_openrouter_profile(task: TaskMeta) -> ModelProfile:
     """
     Choose the OpenRouter model profile based on task characteristics.
-    Uses Kimi for multimodal/screenshot tasks, MiniMax for everything else.
+    Kimi for multimodal/screenshot, MiMo for hardest tasks, MiniMax default.
     """
     if task.has_screenshots or task.requires_multimodal:
         return ModelProfile.OPENROUTER_KIMI
+    if task.risk == TaskRisk.CRITICAL or task.task_class in (TaskClass.DEBUG, TaskClass.REPO_ARCHITECTURE_CHANGE):
+        return ModelProfile.OPENROUTER_MIMO
     return ModelProfile.OPENROUTER_MINIMAX
 
 
@@ -74,9 +76,26 @@ def choose_openai_profile(task: TaskMeta) -> str:
     return get_model("gpt54_mini")
 
 
+def choose_claude_model(task: TaskMeta) -> str:
+    """Select Claude model based on task complexity. Sonnet default, Opus for hard cases."""
+    if task.risk == TaskRisk.CRITICAL or task.task_class == TaskClass.REPO_ARCHITECTURE_CHANGE:
+        return get_model("opus")
+    return get_model("sonnet")
+
+
+def choose_claude_profile(task: TaskMeta) -> str:
+    """Return model_profile string for Claude in chain entry."""
+    model = choose_claude_model(task)
+    if model == get_model("opus"):
+        return ModelProfile.CLAUDE_OPUS.value
+    return ModelProfile.CLAUDE_SONNET.value
+
+
 def _openrouter_model(profile: ModelProfile) -> str:
     if profile == ModelProfile.OPENROUTER_KIMI:
         return get_model("kimi")
+    if profile == ModelProfile.OPENROUTER_MIMO:
+        return get_model("mimo")
     return get_model("minimax")
 
 
@@ -102,35 +121,80 @@ def can_fallback(error_type: Optional[str]) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Chain building
+# Chain building — 4 states
+# ---------------------------------------------------------------------------
+
+def _build_openai_primary_chain(task: TaskMeta) -> List[ChainEntry]:
+    """openai_primary: Codex subscription first, smart model selection."""
+    openai_profile = choose_openai_profile(task)
+    openrouter_profile = choose_openrouter_profile(task)
+    # Determine which model_profile string to use for the codex entry
+    if openai_profile == get_model("gpt54"):
+        codex_profile = "codex_gpt54"
+    else:
+        codex_profile = "codex_gpt54_mini"
+    return [
+        ChainEntry(tool="codex_cli", backend="openai_native", model_profile=codex_profile),
+        ChainEntry(tool="claude_code", backend="anthropic", model_profile="claude_primary"),
+        ChainEntry(tool="codex_cli", backend="openrouter", model_profile=openrouter_profile.value),
+    ]
+
+
+def _build_openai_conservation_chain(task: TaskMeta) -> List[ChainEntry]:
+    """openai_conservation: Conserve OpenAI usage, prioritize OpenRouter fallback."""
+    # In conservation mode: gpt-5.4-mini for almost everything
+    if task.risk == TaskRisk.CRITICAL or task.task_class in (TaskClass.REPO_ARCHITECTURE_CHANGE, TaskClass.DEBUG):
+        openai_profile = "codex_gpt54"
+    else:
+        openai_profile = "codex_gpt54_mini"
+    return [
+        ChainEntry(tool="codex_cli", backend="openai_native", model_profile=openai_profile),
+        ChainEntry(tool="codex_cli", backend="openrouter", model_profile=ModelProfile.OPENROUTER_MINIMAX.value),
+        ChainEntry(tool="claude_code", backend="anthropic", model_profile="claude_primary"),
+    ]
+
+
+def _build_claude_backup_chain(task: TaskMeta) -> List[ChainEntry]:
+    """claude_backup: Claude Code subscription, Sonnet default."""
+    claude_profile = choose_claude_profile(task)
+    return [
+        ChainEntry(tool="claude_code", backend="anthropic", model_profile=claude_profile),
+        ChainEntry(tool="codex_cli", backend="openrouter", model_profile=ModelProfile.OPENROUTER_DYNAMIC.value),
+    ]
+
+
+def _build_openrouter_fallback_chain(task: TaskMeta) -> List[ChainEntry]:
+    """openrouter_fallback: Last resort paid usage."""
+    openrouter_profile = choose_openrouter_profile(task)
+    return [
+        ChainEntry(tool="codex_cli", backend="openrouter", model_profile=openrouter_profile.value),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Backward compat chain aliases
 # ---------------------------------------------------------------------------
 
 def _build_normal_chain(task: TaskMeta) -> List[ChainEntry]:
-    """Build chain for normal state: codex_cli:openai_native -> claude_code:anthropic -> codex_cli:openrouter."""
-    openrouter_profile = choose_openrouter_profile(task)
-    openai_model = choose_openai_profile(task)
-    openai_profile = "codex_gpt54" if openai_model == get_model("gpt54") else "codex_gpt54_mini"
-    return [
-        ChainEntry(tool="codex_cli", backend="openai_native", model_profile=openai_profile),
-        ChainEntry(tool="claude_code", backend="anthropic", model_profile="claude_primary"),
-        ChainEntry(tool="codex_cli", backend="openrouter", model_profile=openrouter_profile.value),
-    ]
+    """Backward compat: normal → openai_primary."""
+    return _build_openai_primary_chain(task)
 
 
 def _build_last10_chain(task: TaskMeta) -> List[ChainEntry]:
-    """Build chain for last10 state: claude_code:anthropic -> codex_cli:openrouter."""
-    openrouter_profile = choose_openrouter_profile(task)
-    return [
-        ChainEntry(tool="claude_code", backend="anthropic", model_profile="claude_primary"),
-        ChainEntry(tool="codex_cli", backend="openrouter", model_profile=openrouter_profile.value),
-    ]
+    """Backward compat: last10 → claude_backup."""
+    return _build_claude_backup_chain(task)
 
 
 def build_chain(task: TaskMeta, state: CodexState) -> List[ChainEntry]:
     """Build the routing chain for a task given the current state."""
-    if state == CodexState.LAST10:
-        return _build_last10_chain(task)
-    return _build_normal_chain(task)
+    builders = {
+        CodexState.OPENAI_PRIMARY: _build_openai_primary_chain,
+        CodexState.OPENAI_CONSERVATION: _build_openai_conservation_chain,
+        CodexState.CLAUDE_BACKUP: _build_claude_backup_chain,
+        CodexState.OPENROUTER_FALLBACK: _build_openrouter_fallback_chain,
+    }
+    builder = builders.get(state, _build_openai_primary_chain)
+    return builder(task)
 
 
 # ---------------------------------------------------------------------------
@@ -146,7 +210,12 @@ def _run_executor(entry: ChainEntry, task: TaskMeta) -> ExecutorResult:
             return run_codex(task, model=get_model("gpt54_mini"))
         return run_codex(task)
     elif entry.tool == "claude_code" and entry.backend == "anthropic":
-        return run_claude(task)
+        model = None
+        if entry.model_profile == "claude_opus":
+            model = get_model("opus")
+        elif entry.model_profile == "claude_sonnet":
+            model = get_model("sonnet")
+        return run_claude(task, model=model)
     elif entry.tool == "codex_cli" and entry.backend == "openrouter":
         model = _openrouter_model(ModelProfile(entry.model_profile))
         return run_openrouter(task, model=model, profile=entry.model_profile)
@@ -172,9 +241,9 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
 
     state_str = state.value
     reason = f"{state_str}: standard chain"
-    if state == CodexState.LAST10:
-        profile = choose_openrouter_profile(task)
-        reason = f"last10: using {profile.value} for openrouter"
+    if state in (CodexState.CLAUDE_BACKUP, CodexState.OPENROUTER_FALLBACK):
+        # No OpenAI lane available in these states
+        pass  # chain already doesn't include openai_native
 
     fallback_from = None
     last_error: Optional[str] = None

@@ -214,12 +214,13 @@ class TestPolicyRegression:
         assert openrouter_entries[-1].model_profile == "openrouter_minimax"
 
     def test_screenshot_gets_kimi_in_last10(self):
-        """Screenshot in last10 still gets kimi profile."""
+        """Screenshot in last10 (claude_backup) uses openrouter_dynamic for openrouter entry."""
         task = self._make_task(has_screenshots=True)
         chain = build_chain(task, CodexState.LAST10)
         openrouter_entries = [e for e in chain if e.backend == "openrouter"]
         assert len(openrouter_entries) > 0
-        assert openrouter_entries[-1].model_profile == "openrouter_kimi"
+        # claude_backup chain uses openrouter_dynamic, not kimi directly
+        assert openrouter_entries[-1].model_profile == "openrouter_dynamic"
 
     def test_chain_entry_format(self):
         """Each ChainEntry has tool, backend, model_profile."""

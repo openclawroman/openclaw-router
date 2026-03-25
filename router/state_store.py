@@ -12,6 +12,12 @@ CONFIG_DIR = Path(__file__).parent.parent / "config"
 MANUAL_STATE_PATH = CONFIG_DIR / "codex_manual_state.json"
 AUTO_STATE_PATH = CONFIG_DIR / "codex_auto_state.json"
 
+# Backward compat mapping: old state names → new ones
+_STATE_BACKWARD_COMPAT = {
+    "normal": "openai_primary",
+    "last10": "claude_backup",
+}
+
 
 class StateStore:
     """Read/write persistent Codex state with manual and auto layers."""
@@ -21,8 +27,8 @@ class StateStore:
         manual_path: Optional[Path] = None,
         auto_path: Optional[Path] = None,
     ):
-        self.manual_path = manual_path or MANUAL_STATE_PATH
-        self.auto_path = auto_path or AUTO_STATE_PATH
+        self.manual_path = Path(manual_path) if manual_path else MANUAL_STATE_PATH
+        self.auto_path = Path(auto_path) if auto_path else AUTO_STATE_PATH
         self._ensure_state_files()
 
     def _ensure_state_files(self):
@@ -30,9 +36,9 @@ class StateStore:
         self.manual_path.parent.mkdir(parents=True, exist_ok=True)
         self.auto_path.parent.mkdir(parents=True, exist_ok=True)
         if not self.manual_path.exists():
-            self._write_default(self.manual_path, CodexState.NORMAL)
+            self._write_default(self.manual_path, CodexState.OPENAI_PRIMARY)
         if not self.auto_path.exists():
-            self._write_default(self.auto_path, CodexState.NORMAL)
+            self._write_default(self.auto_path, CodexState.OPENAI_PRIMARY)
 
     def _write_default(self, path: Path, state: CodexState):
         """Write default state to a file."""
@@ -45,9 +51,14 @@ class StateStore:
 
     @staticmethod
     def _validate_state(raw: str) -> Optional["CodexState"]:
-        """Validate a state string. Returns CodexState or None if invalid."""
+        """Validate a state string. Returns CodexState or None if invalid.
+
+        Supports backward compat: "normal" → OPENAI_PRIMARY, "last10" → CLAUDE_BACKUP.
+        """
+        # Apply backward compat mapping
+        mapped = _STATE_BACKWARD_COMPAT.get(raw, raw)
         try:
-            return CodexState(raw)
+            return CodexState(mapped)
         except ValueError:
             return None
 
@@ -115,14 +126,14 @@ class StateStore:
     # -------------------------------------------------------------------------
 
     def get_state(self) -> CodexState:
-        """Get effective state (manual > auto > default normal)."""
+        """Get effective state (manual > auto > default openai_primary)."""
         manual = self.get_manual_state()
         if manual is not None:
             return manual
         auto = self.get_auto_state()
         if auto is not None:
             return auto
-        return CodexState.NORMAL
+        return CodexState.OPENAI_PRIMARY
 
     def set_state(self, state: CodexState):
         """Set state (writes to manual for backward compat)."""
