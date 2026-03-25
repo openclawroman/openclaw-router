@@ -10,6 +10,7 @@ from threading import Lock
 from types import MappingProxyType
 from typing import Optional, List
 
+from .config_migration import migrate_config, CURRENT_CONFIG_VERSION
 from .model_registry import validate_config_models, check_model_deprecation
 
 logger = logging.getLogger(__name__)
@@ -90,6 +91,16 @@ def load_config(config_path: Optional[Path] = None) -> dict:
 
     with open(path) as f:
         config = json.load(f)
+
+    # Apply config migrations before validation (backward compat)
+    original_version = config.get("version", 0)
+    config = migrate_config(config)
+    if config.get("version") != original_version:
+        logger.info(
+            "Config migrated from version %d to %d",
+            original_version,
+            config.get("version", CURRENT_CONFIG_VERSION),
+        )
 
     if config_path is None and _active_config_path is None:
         # Validate before caching (production path only)
