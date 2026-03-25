@@ -26,7 +26,10 @@
   "openclaw": {
     "delegate_all_coding_tasks": true,
     "delegate_mode": "blocking",
-    "runner_command": ["python3", "ai_code_runner.py"]
+    "runner_command": [
+      "python3",
+      "ai_code_runner.py"
+    ]
   },
   "tools": {
     "codex_cli": {
@@ -49,41 +52,103 @@
   "routing": {
     "openai_primary": {
       "chain": [
-        { "tool": "codex_cli", "backend": "openai_native", "model_profile": "auto" },
-        { "tool": "claude_code", "backend": "anthropic", "model_profile": "claude_primary" },
-        { "tool": "codex_cli", "backend": "openrouter", "model_profile": "openrouter_dynamic" }
-      ]
+        {
+          "tool": "codex_cli",
+          "backend": "openai_native",
+          "model_profile": "auto"
+        },
+        {
+          "tool": "claude_code",
+          "backend": "anthropic",
+          "model_profile": "claude_primary"
+        },
+        {
+          "tool": "codex_cli",
+          "backend": "openrouter",
+          "model_profile": "openrouter_dynamic"
+        }
+      ],
+      "_comment": "Reference only \u2014 chains are built programmatically by policy.py"
     },
     "openai_conservation": {
       "chain": [
-        { "tool": "codex_cli", "backend": "openai_native", "model_profile": "auto" },
-        { "tool": "codex_cli", "backend": "openrouter", "model_profile": "openrouter_minimax" },
-        { "tool": "claude_code", "backend": "anthropic", "model_profile": "claude_primary" }
-      ]
+        {
+          "tool": "codex_cli",
+          "backend": "openai_native",
+          "model_profile": "auto"
+        },
+        {
+          "tool": "codex_cli",
+          "backend": "openrouter",
+          "model_profile": "openrouter_minimax"
+        },
+        {
+          "tool": "claude_code",
+          "backend": "anthropic",
+          "model_profile": "claude_primary"
+        }
+      ],
+      "_comment": "Reference only \u2014 chains are built programmatically by policy.py"
     },
     "claude_backup": {
       "chain": [
-        { "tool": "claude_code", "backend": "anthropic", "model_profile": "auto" },
-        { "tool": "codex_cli", "backend": "openrouter", "model_profile": "openrouter_dynamic" }
-      ]
+        {
+          "tool": "claude_code",
+          "backend": "anthropic",
+          "model_profile": "auto"
+        },
+        {
+          "tool": "codex_cli",
+          "backend": "openrouter",
+          "model_profile": "openrouter_dynamic"
+        }
+      ],
+      "_comment": "Reference only \u2014 chains are built programmatically by policy.py"
     },
     "openrouter_fallback": {
       "chain": [
-        { "tool": "codex_cli", "backend": "openrouter", "model_profile": "openrouter_minimax" }
-      ]
+        {
+          "tool": "codex_cli",
+          "backend": "openrouter",
+          "model_profile": "openrouter_minimax"
+        }
+      ],
+      "_comment": "Reference only \u2014 chains are built programmatically by policy.py"
     },
     "normal": {
       "chain": [
-        { "tool": "codex_cli", "backend": "openai_native", "model_profile": "codex_primary" },
-        { "tool": "claude_code", "backend": "anthropic", "model_profile": "claude_primary" },
-        { "tool": "codex_cli", "backend": "openrouter", "model_profile": "openrouter_dynamic" }
-      ]
+        {
+          "tool": "codex_cli",
+          "backend": "openai_native",
+          "model_profile": "codex_primary"
+        },
+        {
+          "tool": "claude_code",
+          "backend": "anthropic",
+          "model_profile": "claude_primary"
+        },
+        {
+          "tool": "codex_cli",
+          "backend": "openrouter",
+          "model_profile": "openrouter_dynamic"
+        }
+      ],
+      "_comment": "Reference only \u2014 chains are built programmatically by policy.py"
     },
     "last10": {
       "chain": [
-        { "tool": "claude_code", "backend": "anthropic", "model_profile": "claude_primary" },
-        { "tool": "codex_cli", "backend": "openrouter", "model_profile": "openrouter_dynamic" }
-      ]
+        {
+          "tool": "claude_code",
+          "backend": "anthropic",
+          "model_profile": "claude_primary"
+        },
+        {
+          "tool": "codex_cli",
+          "backend": "openrouter",
+          "model_profile": "openrouter_dynamic"
+        }
+      ],
+      "_comment": "Reference only \u2014 chains are built programmatically by policy.py"
     }
   },
   "openrouter_dynamic_rules": {

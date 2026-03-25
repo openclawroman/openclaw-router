@@ -38,9 +38,16 @@ class TestGetModel:
         model = get_model("kimi")
         assert model == "moonshotai/kimi-k2.5"
 
-    def test_unknown_profile_returns_as_is(self):
-        model = get_model("some_future_model")
-        assert model == "some_future_model"
+    def test_unknown_profile_raises_keyerror(self):
+        from router.config_loader import get_model
+        with pytest.raises(KeyError, match="some_future_model"):
+            get_model("some_future_model")
+
+    def test_list_models(self):
+        from router.config_loader import list_models
+        models = list_models()
+        assert "minimax" in models
+        assert "gpt54" in models
 
     def test_models_from_config(self, tmp_path):
         """Verify models come from config, not hardcoded."""

@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "router.config.json"
 
@@ -41,23 +41,30 @@ def get_model(profile: str) -> str:
     config = load_config()
     models = config.get("models", {})
 
-    # Check openrouter models first
-    or_models = models.get("openrouter", {})
-    if profile in or_models:
-        return or_models[profile]
+    for section in models.values():
+        if isinstance(section, dict) and profile in section:
+            return section[profile]
 
-    # Check codex models
-    codex_models = models.get("codex", {})
-    if profile in codex_models:
-        return codex_models[profile]
+    # Also check top-level codex/claude/openrouter configs
+    for tool_config in config.get("tools", {}).values():
+        if isinstance(tool_config, dict):
+            profiles = tool_config.get("profiles", {})
+            if profile in profiles:
+                profile_cfg = profiles[profile]
+                if isinstance(profile_cfg, dict) and "model" in profile_cfg:
+                    return profile_cfg["model"]
 
-    # Check claude models
-    claude_models = models.get("claude", {})
-    if profile in claude_models:
-        return claude_models[profile]
+    raise KeyError(f"Model profile '{profile}' not found in config. Available profiles: {list_models()}")
 
-    # Fallback: return profile name as-is
-    return profile
+
+def list_models() -> List[str]:
+    """List all available model profile names."""
+    config = load_config()
+    names = []
+    for section in config.get("models", {}).values():
+        if isinstance(section, dict):
+            names.extend(section.keys())
+    return names
 
 
 def reload_config(config_path: Optional[Path] = None):

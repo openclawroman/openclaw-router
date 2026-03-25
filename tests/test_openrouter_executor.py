@@ -327,3 +327,17 @@ class TestRunOpenrouter:
         assert result.tool == "openrouter"
         assert result.backend == "openrouter"
         os.remove(result.stdout_ref)
+
+
+# ---------------------------------------------------------------------------
+# Type annotation fix — model: Optional[str] = None
+# ---------------------------------------------------------------------------
+
+class TestRunOpenrouterTypeAnnotation:
+    """Verify run_openrouter accepts Optional[str] for model parameter."""
+
+    def test_model_none_accepted(self):
+        """run_openrouter(meta, model=None) should not raise TypeError."""
+        import inspect
+        sig = inspect.signature(run_openrouter)
+        assert sig.parameters['model'].default is None

@@ -12,7 +12,7 @@ from .models import (
 )
 from .state_store import StateStore
 from .executors import run_codex, run_claude, run_openrouter
-from .errors import ExecutorError
+from .errors import ExecutorError, ELIGIBLE_FALLBACK_ERRORS, can_fallback
 from .config_loader import get_model
 
 
@@ -97,27 +97,6 @@ def _openrouter_model(profile: ModelProfile) -> str:
     if profile == ModelProfile.OPENROUTER_MIMO:
         return get_model("mimo")
     return get_model("minimax")
-
-
-# ---------------------------------------------------------------------------
-# Fallback eligibility
-# ---------------------------------------------------------------------------
-
-ELIGIBLE_FALLBACK_ERRORS = {
-    "auth_error",
-    "rate_limited",
-    "quota_exhausted",
-    "provider_unavailable",
-    "provider_timeout",
-    "transient_network_error",
-}
-
-
-def can_fallback(error_type: Optional[str]) -> bool:
-    """Return True if the given error type is eligible for fallback."""
-    if error_type is None:
-        return False
-    return error_type in ELIGIBLE_FALLBACK_ERRORS
 
 
 # ---------------------------------------------------------------------------
