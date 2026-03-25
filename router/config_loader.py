@@ -2,92 +2,24 @@
 
 import copy
 import json
+from collections.abc import Mapping
 from pathlib import Path
+from threading import Lock
+from types import MappingProxyType
 from typing import Optional, List
 
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "router.config.json"
 
-_config_cache: Optional[dict] = None
+# Thread-safe immutable config snapshot
+_config_snapshot: Optional[MappingProxyType] = None
+_config_raw: Optional[dict] = None  # mutable source for deep copies
+_config_lock = Lock()
 _active_config_path: Optional[Path] = None
 
 
 def _get_config_path() -> Path:
     """Return the active config path (overridable for testing)."""
     return _active_config_path or CONFIG_PATH
-
-
-def _deep_merge(base: dict, override: dict) -> dict:
-    """Deep merge override into base. Override wins on conflicts."""
-    result = copy.deepcopy(base)
-    for key, value in override.items():
-        if key.startswith("_"):
-            continue
-        if isinstance(value, dict) and isinstance(result.get(key), dict):
-            result[key] = _deep_merge(result[key], value)
-        else:
-            result[key] = copy.deepcopy(value)
-    return result
-
-
-def _merge_extends(config: dict, path: Path) -> dict:
-    """Handle _extends inheritance: deep merge base config with overrides."""
-    if "_extends" not in config:
-        return config
-
-    base_path = path.parent / config["_extends"]
-    with open(base_path) as f:
-        base_config = json.load(f)
-
-    return _deep_merge(base_config, config)
-
-
-def load_config(config_path: Optional[Path] = None) -> dict:
-    """Load router config. Supports environment overrides.
-
-    Path resolution priority:
-    1. config_path argument (explicit)
-    2. Active config path (from previous reload_config)
-    3. Environment resolution (CLI flag > env var > environment default)
-
-    Raises ConfigValidationError if config is invalid."""
-    global _config_cache
-
-    if _config_cache is not None and config_path is None:
-        return _config_cache
-
-    # Resolve path
-    if config_path is not None:
-        path = Path(config_path)
-    elif _active_config_path is not None:
-        path = _active_config_path
-    else:
-        from .environments import get_config_path, apply_env_overrides
-        path = get_config_path()
-
-    with open(path) as f:
-        config = json.load(f)
-
-
-    # Handle _extends (base config inheritance)
-    config = _merge_extends(config, path)
-
-    # Apply environment overrides (only when using environment resolution)
-    if config_path is None and _active_config_path is None:
-        try:
-            from .environments import apply_env_overrides as _apply
-            config = _apply(config)
-        except ImportError:
-            pass
-
-    # Validate on load (skip when testing with a custom config path)
-    if config_path is None and _active_config_path is None:
-        from .config_validator import validate_config
-        result = validate_config(config)
-        if not result.valid:
-            raise ConfigValidationError(result)
-    if config_path is None:
-        _config_cache = config
-    return config
 
 
 class ConfigValidationError(Exception):
@@ -97,30 +29,116 @@ class ConfigValidationError(Exception):
         super().__init__(validation_result.summary())
 
 
+def _freeze(obj):
+    """Recursively convert nested dicts to MappingProxyType for full immutability.
+
+    Lists are frozen as tuples to ensure complete immutability of the
+    returned snapshot.
+    """
+    if isinstance(obj, dict):
+        return MappingProxyType({k: _freeze(v) for k, v in obj.items()})
+    elif isinstance(obj, list):
+        return tuple(_freeze(item) for item in obj)
+    return obj
+
+
+def _unfreeze(obj):
+    """Recursively convert frozen objects back to mutable forms.
+
+    MappingProxyType -> dict, tuple -> list.  Everything else passes
+    through unchanged.
+    """
+    if isinstance(obj, MappingProxyType):
+        return {k: _unfreeze(v) for k, v in obj.items()}
+    elif isinstance(obj, tuple):
+        return [_unfreeze(item) for item in obj]
+    return obj
+
+
+def load_config(config_path: Optional[Path] = None) -> dict:
+    """Load router config from JSON file.
+
+    Raises ConfigValidationError if config is invalid.
+    Returns a regular dict copy for backward compatibility (read-only recommended).
+    """
+    global _config_snapshot, _config_raw
+
+    with _config_lock:
+        if _config_snapshot is not None and config_path is None:
+            return copy.deepcopy(_config_raw)
+
+    path = config_path or _get_config_path()
+
+    with open(path) as f:
+        config = json.load(f)
+
+    if config_path is None and _active_config_path is None:
+        # Validate before caching (production path only)
+        try:
+            from .config_validator import validate_config
+            result = validate_config(config)
+            if not result.valid:
+                raise ConfigValidationError(result)
+        except ImportError:
+            pass
+
+    # Cache: atomic swap under lock
+    with _config_lock:
+        _config_raw = copy.deepcopy(config)
+        _config_snapshot = _freeze(config)
+
+    return copy.deepcopy(config)
+
+
+def reload_config(config_path: Optional[Path] = None) -> dict:
+    """Reload config from disk. Clears cache, re-validates, returns new config.
+
+    Thread-safe. Atomic swap — callers never see partial state.
+    """
+    global _config_snapshot, _config_raw, _active_config_path
+
+    with _config_lock:
+        _config_snapshot = None
+        _config_raw = None
+        _active_config_path = config_path
+
+    return load_config()
+
+
+def get_config_snapshot() -> MappingProxyType:
+    """Get the raw immutable config snapshot (no copy).
+
+    For read-only access without the overhead of load_config()'s copy.
+    """
+    global _config_snapshot
+    with _config_lock:
+        if _config_snapshot is not None:
+            return _config_snapshot
+    # Trigger load outside lock to avoid deadlock
+    load_config()
+    with _config_lock:
+        return _config_snapshot
+
+
 def get_model(profile: str) -> str:
     """
     Get the model string for a given profile name.
 
-    Examples:
-        get_model("minimax") -> "minimax/minimax-m2.7"
-        get_model("kimi") -> "moonshotai/kimi-k2.5"
-        get_model("codex_default") -> "codex-default"
-        get_model("claude_default") -> "claude-default"
+    Uses immutable snapshot to prevent mutation during iteration.
     """
-    config = load_config()
+    config = get_config_snapshot()
     models = config.get("models", {})
 
     for section in models.values():
-        if isinstance(section, dict) and profile in section:
+        if isinstance(section, Mapping) and profile in section:
             return section[profile]
 
-    # Also check top-level codex/claude/openrouter configs
     for tool_config in config.get("tools", {}).values():
-        if isinstance(tool_config, dict):
+        if isinstance(tool_config, Mapping):
             profiles = tool_config.get("profiles", {})
             if profile in profiles:
                 profile_cfg = profiles[profile]
-                if isinstance(profile_cfg, dict) and "model" in profile_cfg:
+                if isinstance(profile_cfg, Mapping) and "model" in profile_cfg:
                     return profile_cfg["model"]
 
     raise KeyError(f"Model profile '{profile}' not found in config. Available profiles: {list_models()}")
@@ -128,17 +146,20 @@ def get_model(profile: str) -> str:
 
 def list_models() -> List[str]:
     """List all available model profile names."""
-    config = load_config()
+    config = get_config_snapshot()
     names = []
     for section in config.get("models", {}).values():
-        if isinstance(section, dict):
+        if isinstance(section, Mapping):
             names.extend(section.keys())
     return names
 
 
 def get_reliability_config() -> dict:
-    """Get reliability/fallback configuration with defaults."""
-    config = load_config()
+    """Get reliability/fallback configuration with defaults.
+
+    Returns a mutable copy — safe for callers to use without affecting global config.
+    """
+    config = get_config_snapshot()
     reliability = config.get("reliability", {})
     return {
         "chain_timeout_s": reliability.get("chain_timeout_s", 600),
@@ -146,14 +167,3 @@ def get_reliability_config() -> dict:
         "max_retries": reliability.get("max_retries", 2),
         "max_fallbacks": reliability.get("max_fallbacks", 3),
     }
-
-
-def reload_config(config_path: Optional[Path] = None):
-    """Clear config cache (for testing or hot-reload).
-
-    If config_path is provided, it overrides the active config path
-    until the next reload_config() call.
-    """
-    global _config_cache, _active_config_path
-    _config_cache = None
-    _active_config_path = config_path

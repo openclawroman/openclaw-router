@@ -346,6 +346,7 @@ class TestImports(unittest.TestCase):
             "PhaseResult", "PipelineResult",
             "requires_three_phase", "select_flow",
             "load_config", "get_model", "reload_config",
+            "get_config_snapshot", "ConfigValidationError",
         }
         actual = set(router.__all__)
         self.assertEqual(actual, expected,
