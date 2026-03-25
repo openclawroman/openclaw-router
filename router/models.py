@@ -120,6 +120,8 @@ class RouteDecision:
     attempted_fallback: bool = False
     fallback_from: Optional[str] = None
     providers_skipped: List[str] = field(default_factory=list)
+    chain_timed_out: bool = False
+    fallback_count: int = 0
 
 
 @dataclass

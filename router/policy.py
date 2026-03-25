@@ -1,6 +1,7 @@
 """Routing policy logic based on Codex state and task characteristics."""
 
 import os
+import time
 from enum import Enum
 from pathlib import Path
 from typing import Optional, List, Tuple
@@ -13,7 +14,7 @@ from .models import (
 from .state_store import StateStore
 from .executors import run_codex, run_claude, run_openrouter
 from .errors import ExecutorError, ELIGIBLE_FALLBACK_ERRORS, can_fallback
-from .config_loader import get_model
+from .config_loader import get_model, get_reliability_config
 from .circuit_breaker import CircuitBreaker
 
 
@@ -252,6 +253,11 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
     """
     state = resolve_state()
     chain = build_chain(task, state)
+    reliability = get_reliability_config()
+    chain_timeout_s = reliability.get("chain_timeout_s", 600)
+    max_fallbacks = reliability.get("max_fallbacks", 3)
+
+    start_time = time.monotonic()
 
     state_str = state.value
     reason = f"{state_str}: standard chain"
@@ -264,8 +270,25 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
     result: Optional[ExecutorResult] = None
     providers_skipped: List[str] = []
     breaker = get_breaker()
+    fallback_count = 0
+    chain_timed_out = False
+    is_first_executor = True
 
     for entry in chain:
+        # Check chain timeout
+        elapsed = time.monotonic() - start_time
+        if elapsed >= chain_timeout_s:
+            chain_timed_out = True
+            result = result or ExecutorResult(
+                task_id=task.task_id,
+                tool="chain",
+                backend="timeout",
+                model_profile="",
+                success=False,
+                normalized_error="chain_timeout",
+            )
+            break
+
         # Circuit breaker: skip if provider is open
         if not breaker.is_available(entry.tool, entry.backend):
             providers_skipped.append(f"{entry.tool}:{entry.backend}")
@@ -283,6 +306,12 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
             if result.normalized_error and can_fallback(result.normalized_error):
                 if fallback_from is None:
                     fallback_from = entry.tool
+                if is_first_executor:
+                    is_first_executor = False
+                else:
+                    fallback_count += 1
+                if fallback_count >= max_fallbacks:
+                    break
                 continue
             else:
                 break
@@ -301,6 +330,12 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                 break
             if fallback_from is None:
                 fallback_from = entry.tool
+            if is_first_executor:
+                is_first_executor = False
+            else:
+                fallback_count += 1
+            if fallback_count >= max_fallbacks:
+                break
 
     if result is None:
         result = ExecutorResult(
@@ -317,6 +352,8 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
         attempted_fallback=fallback_from is not None,
         fallback_from=fallback_from,
         providers_skipped=providers_skipped,
+        chain_timed_out=chain_timed_out,
+        fallback_count=fallback_count,
     )
 
     return decision, result
