@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from .models import CodexState
-from .errors import StateError, ConfigurationError
+from .errors import StateError
 
 
 CONFIG_DIR = Path(__file__).parent.parent / "config"
@@ -43,11 +43,21 @@ class StateStore:
         except IOError as e:
             raise StateError(f"Failed to write state file {path}: {e}")
 
-    def _read(self, path: Path) -> dict:
-        """Read a state file."""
+    @staticmethod
+    def _validate_state(raw: str) -> Optional["CodexState"]:
+        """Validate a state string. Returns CodexState or None if invalid."""
+        try:
+            return CodexState(raw)
+        except ValueError:
+            return None
+
+    def _read(self, path: Path) -> Optional[dict]:
+        """Read a state file. Returns None if file does not exist."""
         try:
             with open(path, "r") as f:
                 return json.load(f)
+        except FileNotFoundError:
+            return None
         except (json.JSONDecodeError, IOError) as e:
             raise StateError(f"Failed to read state file {path}: {e}")
 
@@ -64,15 +74,14 @@ class StateStore:
     # -------------------------------------------------------------------------
 
     def get_manual_state(self) -> Optional[CodexState]:
-        """Get the manually-set Codex state. Returns None if manual is not active."""
+        """Get the manually-set Codex state. Returns None if manual is not active or file missing."""
         data = self._read(self.manual_path)
+        if data is None:
+            return None
         raw = data.get("state")
         if raw is None or raw == "null":
             return None
-        try:
-            return CodexState(raw)
-        except ValueError:
-            return None
+        return self._validate_state(raw)
 
     def set_manual_state(self, state: Optional[CodexState]):
         """Set the manual override state. Pass None to clear."""
@@ -87,15 +96,14 @@ class StateStore:
     # -------------------------------------------------------------------------
 
     def get_auto_state(self) -> Optional[CodexState]:
-        """Get the auto-computed Codex state. Returns None if not set."""
+        """Get the auto-computed Codex state. Returns None if not set or file missing."""
         data = self._read(self.auto_path)
+        if data is None:
+            return None
         raw = data.get("state")
         if raw is None:
             return None
-        try:
-            return CodexState(raw)
-        except ValueError:
-            return None
+        return self._validate_state(raw)
 
     def set_auto_state(self, state: CodexState):
         """Set the auto-computed state."""
