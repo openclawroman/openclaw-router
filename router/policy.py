@@ -17,6 +17,7 @@ from .executors import run_codex, run_claude, run_openrouter
 from .errors import ExecutorError, ELIGIBLE_FALLBACK_ERRORS, can_fallback
 from .config_loader import get_model, get_reliability_config
 from .attempt_logger import AttemptLogger, ExecutorAttempt, RoutingTrace
+from .notifications import NotificationManager
 from .circuit_breaker import CircuitBreaker
 
 
@@ -46,6 +47,27 @@ def reset_breaker() -> None:
     """Reset the circuit breaker singleton. Primarily for testing."""
     global _breaker
     _breaker = None
+
+
+# ---------------------------------------------------------------------------
+# Notification manager singleton
+# ---------------------------------------------------------------------------
+
+_notifier: Optional[NotificationManager] = None
+
+
+def get_notifier() -> NotificationManager:
+    """Get or create the notification manager singleton."""
+    global _notifier
+    if _notifier is None:
+        _notifier = NotificationManager()
+    return _notifier
+
+
+def reset_notifier() -> None:
+    """Reset the notification manager singleton. For testing."""
+    global _notifier
+    _notifier = None
 
 
 # ---------------------------------------------------------------------------
@@ -414,6 +436,23 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                 normalized_error=last_error or "unknown_error",
                 trace_id=trace_id,
             )
+
+        # --- Notifications ---
+        notifier = get_notifier()
+
+        # Fallback rate alert (if we fell back)
+        if fallback_count > 0:
+            notifier.check_fallback_rate(
+                total_tasks=1,
+                fallback_tasks=1,
+                window_hours=1,
+            )
+
+        # Conservation duration check
+        notifier.check_conservation_duration(
+            state=state_str,
+            state_entered_at=None,  # Could be tracked from state history
+        )
 
         # Write attempt trace
         total_latency = int((time.monotonic() - attempt_start) * 1000)
