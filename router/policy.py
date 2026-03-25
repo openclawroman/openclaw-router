@@ -18,7 +18,7 @@ from .errors import ExecutorError
 # Configurable model strings
 # ---------------------------------------------------------------------------
 
-OPENROUTER_MINIMAX_MODEL = "minimax/minimax-m2.5"
+OPENROUTER_MINIMAX_MODEL = "minimax/minimax-m2.7"
 OPENROUTER_KIMI_MODEL = "moonshotai/kimi-k2.5"
 
 
@@ -97,7 +97,7 @@ def can_fallback(error_type: Optional[str]) -> bool:
 # ---------------------------------------------------------------------------
 
 def _build_normal_chain(task: TaskMeta) -> List[ChainEntry]:
-    """Build chain for normal state: codex_cli:openai_native → claude_code:anthropic → codex_cli:openrouter."""
+    """Build chain for normal state: codex_cli:openai_native -> claude_code:anthropic -> codex_cli:openrouter."""
     openrouter_profile = choose_openrouter_profile(task)
     return [
         ChainEntry(tool="codex_cli", backend="openai_native", model_profile="codex_primary"),
@@ -107,7 +107,7 @@ def _build_normal_chain(task: TaskMeta) -> List[ChainEntry]:
 
 
 def _build_last10_chain(task: TaskMeta) -> List[ChainEntry]:
-    """Build chain for last10 state: claude_code:anthropic → codex_cli:openrouter."""
+    """Build chain for last10 state: claude_code:anthropic -> codex_cli:openrouter."""
     openrouter_profile = choose_openrouter_profile(task)
     return [
         ChainEntry(tool="claude_code", backend="anthropic", model_profile="claude_primary"),

@@ -95,7 +95,7 @@ def run_codex(meta: TaskMeta) -> ExecutorResult:
 
     start = time.time()
     returncode, stdout, stderr = _run_subprocess(
-        ["codex", meta.summary or meta.task_id],
+        ["codex", meta.summary or task_id],
         cwd=cwd
     )
     latency_ms = int((time.time() - start) * 1000)

@@ -131,18 +131,6 @@ class Classifier:
         """
         Enrich a raw task dict.
 
-        Expected raw shape::
-
-            {
-                "task_id": "optional",
-                "agent": "coder",
-                "summary": "...",
-                "repo_path": "...",
-                "cwd": "...",
-                "risk": "medium",
-                "task_class": "implementation",
-            }
-
         Returns TaskMeta with defaults filled in.
         """
         summary = (
