@@ -395,6 +395,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
     fallback_count = 0
     chain_timed_out = False
     is_first_executor = True
+    error_history: List[dict] = []
 
     # Register task as in-flight
     shutdown_mgr.register_task(task.task_id, state_str, chain[0].tool if chain else "none")
@@ -454,6 +455,13 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                 if result.normalized_error:
                     breaker.record_failure(entry.tool, entry.backend, result.normalized_error)
                 if result.normalized_error and can_fallback(result.normalized_error):
+                    error_history.append({
+                        "tool": entry.tool,
+                        "backend": entry.backend,
+                        "model_profile": entry.model_profile,
+                        "error_type": result.normalized_error,
+                        "error_message": str(result.final_summary) or "",
+                    })
                     if fallback_from is None:
                         fallback_from = entry.tool
                     if is_first_executor:
@@ -464,6 +472,15 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                         break
                     continue
                 else:
+                    # Non-fallback-eligible error — record and stop
+                    if result.normalized_error:
+                        error_history.append({
+                            "tool": entry.tool,
+                            "backend": entry.backend,
+                            "model_profile": entry.model_profile,
+                            "error_type": result.normalized_error,
+                            "error_message": str(result.final_summary) or "",
+                        })
                     break
             except ExecutorError as e:
                 last_error = e.error_type
@@ -487,7 +504,21 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                     trace_id=trace_id,
                 )
                 if not can_fallback(e.error_type):
+                    error_history.append({
+                        "tool": entry.tool,
+                        "backend": entry.backend,
+                        "model_profile": entry.model_profile,
+                        "error_type": e.error_type,
+                        "error_message": str(e),
+                    })
                     break
+                error_history.append({
+                    "tool": entry.tool,
+                    "backend": entry.backend,
+                    "model_profile": entry.model_profile,
+                    "error_type": e.error_type,
+                    "error_message": str(e),
+                })
                 if fallback_from is None:
                     fallback_from = entry.tool
                 if is_first_executor:
@@ -503,7 +534,10 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                 success=False,
                 normalized_error=last_error or "unknown_error",
                 trace_id=trace_id,
+                error_history=error_history,
             )
+        else:
+            result.error_history = error_history
 
         # --- Notifications ---
         notifier = get_notifier()
@@ -548,6 +582,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
             chain_timed_out=chain_timed_out,
             fallback_count=fallback_count,
             trace_id=trace_id,
+            error_history=error_history,
         )
 
         return decision, result

@@ -171,7 +171,7 @@ class TestRouteDecision(unittest.TestCase):
             "attempted_fallback", "fallback_from",
             "providers_skipped",
             "chain_timed_out", "fallback_count",
-            "trace_id",
+            "trace_id", "error_history",
         }
         actual = set(vars(decision).keys())
         self.assertEqual(actual, expected)
@@ -231,7 +231,7 @@ class TestExecutorResult(unittest.TestCase):
             "normalized_error", "exit_code", "latency_ms", "request_id",
             "cost_estimate_usd", "artifacts", "stdout_ref", "stderr_ref",
             "final_summary", "trace_id", "rate_limit_info",
-            "partial_success", "warnings",
+            "partial_success", "warnings", "error_history",
         }
         actual = set(vars(result).keys())
         self.assertEqual(actual, expected)
@@ -241,7 +241,7 @@ class TestExecutorResult(unittest.TestCase):
         rd_fields = set(vars(RouteDecision()).keys())
         er_fields = set(vars(ExecutorResult()).keys())
         shared = rd_fields & er_fields
-        self.assertEqual(shared, {"task_id", "trace_id"},
+        self.assertEqual(shared, {"task_id", "trace_id", "error_history"},
                          f"Unexpected shared fields: {shared}")
 
 
