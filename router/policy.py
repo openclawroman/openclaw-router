@@ -3,7 +3,8 @@
 import os
 from enum import Enum
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict, Any
+from threading import Lock
 
 from .models import (
     TaskMeta, RouteDecision, ExecutorResult, ChainEntry,
@@ -43,6 +44,45 @@ def claude_available() -> bool:
         or Path(os.path.expanduser("~/.local/bin/claude")).exists()
         or os.system("command -v claude > /dev/null 2>&1") == 0
     )
+
+
+# ---------------------------------------------------------------------------
+# Circuit breaker
+# ---------------------------------------------------------------------------
+
+class CircuitBreaker:
+    """Simple circuit breaker for tracking provider health."""
+
+    def __init__(self):
+        self._lock = Lock()
+        self._stats: Dict[str, Dict[str, Any]] = {}
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get stats for all tracked providers."""
+        with self._lock:
+            return dict(self._stats)
+
+    def record_success(self, key: str) -> None:
+        """Record a successful execution."""
+        with self._lock:
+            self._stats[key] = {"state": "closed", "failure_count": 0}
+
+    def record_failure(self, key: str) -> None:
+        """Record a failed execution."""
+        with self._lock:
+            entry = self._stats.get(key, {"state": "closed", "failure_count": 0})
+            entry["failure_count"] = entry.get("failure_count", 0) + 1
+            if entry["failure_count"] >= 5:
+                entry["state"] = "open"
+            self._stats[key] = entry
+
+
+_breaker = CircuitBreaker()
+
+
+def get_breaker() -> CircuitBreaker:
+    """Get the global circuit breaker instance."""
+    return _breaker
 
 
 # ---------------------------------------------------------------------------
@@ -221,6 +261,29 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
     Resolves state, builds chain, executes chain with fallback,
     and returns (RouteDecision, ExecutorResult).
     """
+    from .health import get_shutdown_manager
+
+    shutdown_mgr = get_shutdown_manager()
+
+    if not shutdown_mgr.should_accept_new_tasks():
+        return (
+            RouteDecision(
+                task_id=task.task_id,
+                state="shutdown",
+                chain=[],
+                reason="Shutdown in progress",
+            ),
+            ExecutorResult(
+                task_id=task.task_id,
+                tool="router",
+                backend="shutdown",
+                model_profile="",
+                success=False,
+                normalized_error="shutdown_in_progress",
+                final_summary="Router is shutting down, not accepting new tasks",
+            ),
+        )
+
     state = resolve_state()
     chain = build_chain(task, state)
 
@@ -234,51 +297,57 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
     last_error: Optional[str] = None
     result: Optional[ExecutorResult] = None
 
-    for entry in chain:
-        last_error = None
-        try:
-            result = _run_executor(entry, task)
-            if result.success:
-                break
-            # Non-success but no exception — check if fallback-eligible
-            if result.normalized_error and can_fallback(result.normalized_error):
+    # Register task as in-flight
+    shutdown_mgr.register_task(task.task_id, state_str, chain[0].tool if chain else "none")
+
+    try:
+        for entry in chain:
+            last_error = None
+            try:
+                result = _run_executor(entry, task)
+                if result.success:
+                    break
+                # Non-success but no exception — check if fallback-eligible
+                if result.normalized_error and can_fallback(result.normalized_error):
+                    if fallback_from is None:
+                        fallback_from = entry.tool
+                    continue
+                else:
+                    break
+            except ExecutorError as e:
+                last_error = e.error_type
+                result = ExecutorResult(
+                    task_id=task.task_id,
+                    tool=entry.tool,
+                    backend=entry.backend,
+                    model_profile=entry.model_profile,
+                    success=False,
+                    normalized_error=e.error_type,
+                )
+                if not can_fallback(e.error_type):
+                    break
                 if fallback_from is None:
                     fallback_from = entry.tool
-                continue
-            else:
-                break
-        except ExecutorError as e:
-            last_error = e.error_type
+
+        if result is None:
             result = ExecutorResult(
                 task_id=task.task_id,
-                tool=entry.tool,
-                backend=entry.backend,
-                model_profile=entry.model_profile,
                 success=False,
-                normalized_error=e.error_type,
+                normalized_error=last_error or "unknown_error",
             )
-            if not can_fallback(e.error_type):
-                break
-            if fallback_from is None:
-                fallback_from = entry.tool
 
-    if result is None:
-        result = ExecutorResult(
+        decision = RouteDecision(
             task_id=task.task_id,
-            success=False,
-            normalized_error=last_error or "unknown_error",
+            state=state_str,
+            chain=chain,
+            reason=reason,
+            attempted_fallback=fallback_from is not None,
+            fallback_from=fallback_from,
         )
 
-    decision = RouteDecision(
-        task_id=task.task_id,
-        state=state_str,
-        chain=chain,
-        reason=reason,
-        attempted_fallback=fallback_from is not None,
-        fallback_from=fallback_from,
-    )
-
-    return decision, result
+        return decision, result
+    finally:
+        shutdown_mgr.unregister_task(task.task_id)
 
 
 # ---------------------------------------------------------------------------
