@@ -17,9 +17,9 @@ class TestConfigLoader:
     def test_load_config_caches(self):
         # First load
         config1 = load_config()
-        # Second load returns same object
+        # Second load returns equivalent config (deep copy for mutation safety)
         config2 = load_config()
-        assert config1 is config2
+        assert config1 == config2
 
     def test_reload_clears_cache(self):
         config1 = load_config()

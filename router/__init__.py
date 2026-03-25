@@ -55,7 +55,7 @@ from .flow_control import (
     requires_three_phase,
     select_flow,
 )
-from .config_loader import load_config, get_model, reload_config
+from .config_loader import load_config, get_model, reload_config, get_config_snapshot, ConfigValidationError
 
 __all__ = [
     # models
@@ -116,4 +116,6 @@ __all__ = [
     "load_config",
     "get_model",
     "reload_config",
+    "get_config_snapshot",
+    "ConfigValidationError",
 ]

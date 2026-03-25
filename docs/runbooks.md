@@ -508,3 +508,64 @@ if not result.valid:
 ### Note on VALID_STATES
 
 The `VALID_STATES` set in `config_validator.py` is kept in sync with the `RouterState` enum in `router/policy.py`. If you add a new state to the router, remember to update both places. (Future improvement: import `VALID_STATES` directly from the model.)
+
+
+---
+
+## 7. Config Hot-Reload
+
+The router supports thread-safe config hot-reload with immutable snapshots. This allows reloading configuration at runtime without restarting the service, while guaranteeing that no caller sees partially-updated or mutable config state.
+
+### How `reload_config()` Works
+
+```python
+from router.config_loader import reload_config
+
+# Reload from the default config path (resets cache, re-validates)
+config = reload_config()
+
+# Reload from a custom path (useful for testing)
+config = reload_config(Path("config/router.config.staging.json"))
+
+# Reset to default path
+config = reload_config(None)
+```
+
+`reload_config()` performs an **atomic swap**:
+1. Acquires a thread lock
+2. Clears the cached snapshot and raw config
+3. Loads fresh JSON from disk
+4. Validates the config (if `config_validator` is available)
+5. Stores a deep copy (`_config_raw`) and an immutable snapshot (`_config_snapshot`)
+6. Returns a regular dict copy for backward compatibility
+
+No caller can ever observe partial state — the old snapshot remains available until the new one is fully built.
+
+### How to Use `get_config_snapshot()` for Read-Only Access
+
+```python
+from router.config_loader import get_config_snapshot
+
+# Zero-copy read — no dict copy overhead
+snapshot = get_config_snapshot()
+
+model = snapshot["models"]["openrouter"]["minimax"]
+timeout = snapshot["reliability"]["chain_timeout_s"]
+```
+
+`get_config_snapshot()` returns a `MappingProxyType` — a read-only view of the config dict. Key differences from `load_config()`:
+
+| Operation | `load_config()` | `get_config_snapshot()` |
+|-----------|----------------|------------------------|
+| Returns | Mutable dict copy | Immutable `MappingProxyType` |
+| Copy overhead | Deep copy on every call | Zero-copy |
+| Mutation-safe | Caller's copy (won't affect global) | Always safe (writes raise `TypeError`) |
+| Use case | Need to modify config locally | Read-only access |
+
+### Thread Safety Guarantees
+
+- **Reads are lock-free**: `get_config_snapshot()` acquires a lock only to check if a snapshot exists, then returns the `MappingProxyType` reference directly — no copy, no deep traversal
+- **Atomic swap**: Both `load_config()` and `reload_config()` write `_config_raw` and `_config_snapshot` under the same lock, ensuring no caller sees partial state
+- **Deadlock avoidance**: `get_config_snapshot()` releases its lock before calling `load_config()` (which acquires its own lock), then re-checks
+- **Immutable returns**: `load_config()` returns a `copy.deepcopy()` of the raw config — mutations to the returned dict don't affect the global snapshot
+- **Deep immutability**: `_freeze()` recursively converts all dicts to `MappingProxyType` and all lists to tuples, so no part of the snapshot can be mutated
