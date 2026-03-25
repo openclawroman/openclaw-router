@@ -587,6 +587,33 @@ The `VALID_STATES` set in `config_validator.py` is kept in sync with the `Router
 
 ---
 
+## 9. Performance
+
+### Routing Latency (7.1)
+
+- **Target:** routing decision < 10ms (excluding executor runtime)
+- **Benchmark:** `python3 -m router.benchmark` or `pytest --benchmark`
+- **Measured components:** `resolve_state()`, `build_chain()`, `get_model()`, circuit breaker check
+- **Key optimization:** StateStore singleton with in-memory cache (no disk I/O per route)
+
+### Thread Safety (7.2)
+
+- StateStore uses `threading.RLock` for all state operations
+- Safe for concurrent `route_task()` calls from multiple threads
+- Reentrant lock: methods can call other locked methods safely
+- State files are atomically written (tempfile + rename) even under concurrent access
+
+### Config Memoization (7.3)
+
+- Config snapshot cached as `MappingProxyType` (immutable) after first load
+- `get_config_snapshot()` returns cached snapshot (no deepcopy, no file read)
+- StateStore singleton caches state values in memory
+- `get_manual_state()` / `get_auto_state()` use cached values until invalidated by set operations
+- Global singleton via `get_state_store()` — created once, reused across all `route_task()` calls
+
+
+---
+
 ## 7. Config Hot-Reload
 
 The router supports thread-safe config hot-reload with immutable snapshots. This allows reloading configuration at runtime without restarting the service, while guaranteeing that no caller sees partially-updated or mutable config state.
