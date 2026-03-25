@@ -10,7 +10,6 @@ from typing import Optional
 
 from .models import (
     TaskMeta, TaskClass, TaskRisk, TaskModality,
-    TaskCriticality
 )
 
 
@@ -75,7 +74,6 @@ def detect_modality(text: str) -> TaskModality:
 
 def _extract_repo_path(text: str) -> Optional[str]:
     """Extract repo path from text if present."""
-    # Match common path patterns
     patterns = [
         r'/[a-zA-Z0-9_./-]+/(?:ops-hub|projects?|repo|src|app)/[a-zA-Z0-9_./-]+',
         r'~/[a-zA-Z0-9_./-]+',
@@ -90,7 +88,6 @@ def _extract_repo_path(text: str) -> Optional[str]:
 
 def _generate_summary(text: str) -> str:
     """Generate a short summary from task text."""
-    # Strip common prefixes
     text = re.sub(r'^(implement|build|add|create|fix|refactor|debug|review)\s+', '', text.lower())
     text = re.sub(r'\s+', ' ', text).strip()
     return text[:120]
@@ -102,80 +99,87 @@ class Classifier:
     def classify(self, description: str) -> TaskMeta:
         """
         Classify a task description and produce enriched TaskMeta.
-        
+
         Args:
             description: Free-text task description
-            
+
         Returns:
             TaskMeta with all fields enriched
         """
         repo_path = _extract_repo_path(description)
-        
+        task_class = detect_task_class(description)
+
         return TaskMeta(
             task_id=str(uuid.uuid4())[:8],
             agent="coder",
-            task_class=detect_task_class(description),
-            task_brief=description,  # keep full description as brief
-            repo_path=repo_path or "",
-            branch="main",
+            task_class=task_class,
             risk=detect_risk(description),
-            criticality=TaskCriticality.NORMAL,
-            context_size="medium",
             modality=detect_modality(description),
-            requires_multimodal=detect_task_class(description) in {
+            requires_repo_write=task_class not in {TaskClass.CODE_REVIEW, TaskClass.DEBUG},
+            requires_multimodal=task_class in {
                 TaskClass.UI_FROM_SCREENSHOT,
                 TaskClass.MULTIMODAL_CODE_TASK,
-                TaskClass.SWARM_CODE_TASK,
             },
             has_screenshots="screenshot" in description.lower(),
             swarm="swarm" in description.lower(),
+            repo_path=repo_path or "",
             cwd=repo_path or "",
+            summary=_generate_summary(description),
         )
 
     def classify_from_dict(self, raw: dict) -> TaskMeta:
         """
         Enrich a raw task dict.
 
-        Expected ``raw`` shape::
+        Expected raw shape::
 
             {
                 "task_id": "optional",
                 "agent": "coder",
-                "task_brief": "...",  # primary field for classification
-                "repo_path": "...",   # optional
-                "branch": "main",     # optional
-                "risk": "medium",     # optional
-                "criticality": "normal",  # optional
-                "context_size": "medium", # optional
+                "summary": "...",
+                "repo_path": "...",
+                "cwd": "...",
+                "risk": "medium",
+                "task_class": "implementation",
             }
 
-        Returns TaskMeta (call .to_dict() to merge back).
+        Returns TaskMeta with defaults filled in.
         """
-        brief = (
-            raw.get("task_brief")
+        summary = (
+            raw.get("summary")
             or raw.get("description")
+            or raw.get("task_brief")
             or raw.get("task")
             or raw.get("text")
             or ""
         )
-        meta = self.classify(brief)
+        meta = self.classify(summary)
 
         # Override with explicit values from raw dict if present
         if "task_id" in raw:
             meta.task_id = raw["task_id"]
         if "repo_path" in raw:
             meta.repo_path = raw["repo_path"]
+        if "cwd" in raw:
+            meta.cwd = raw["cwd"]
+        elif "repo_path" in raw:
             meta.cwd = raw["repo_path"]
-        if "branch" in raw:
-            meta.branch = raw["branch"]
         if "risk" in raw:
             meta.risk = TaskRisk(raw["risk"])
-        if "criticality" in raw:
-            meta.criticality = TaskCriticality(raw["criticality"])
-        if "context_size" in raw:
-            meta.context_size = raw["context_size"]
         if "agent" in raw:
             meta.agent = raw["agent"]
+        if "task_class" in raw:
+            meta.task_class = TaskClass(raw["task_class"])
+        if "requires_repo_write" in raw:
+            meta.requires_repo_write = bool(raw["requires_repo_write"])
+        if "requires_multimodal" in raw:
+            meta.requires_multimodal = bool(raw["requires_multimodal"])
+        if "has_screenshots" in raw:
+            meta.has_screenshots = bool(raw["has_screenshots"])
+        if "swarm" in raw:
+            meta.swarm = bool(raw["swarm"])
+        if "modality" in raw:
+            meta.modality = TaskModality(raw["modality"])
 
         return meta
 
