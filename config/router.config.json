@@ -2,7 +2,8 @@
   "models": {
     "openrouter": {
       "minimax": "minimax/minimax-m2.7",
-      "kimi": "moonshotai/kimi-k2.5"
+      "kimi": "moonshotai/kimi-k2.5",
+      "mimo": "xiaomi/mimo-v2-pro"
     },
     "codex": {
       "default": "codex-default",
@@ -10,12 +11,14 @@
       "gpt54_mini": "gpt-5.4-mini"
     },
     "claude": {
-      "default": "claude-default"
+      "default": "claude-default",
+      "sonnet": "claude-sonnet-4.6",
+      "opus": "claude-opus-4.6"
     }
   },
   "version": 1,
   "state": {
-    "default": "normal",
+    "default": "openai_primary",
     "manual_state_file": "config/codex_manual_state.json",
     "auto_state_file": "config/codex_auto_state.json",
     "claude_health_file": "runtime/claude_health.json"
@@ -44,6 +47,31 @@
     }
   },
   "routing": {
+    "openai_primary": {
+      "chain": [
+        { "tool": "codex_cli", "backend": "openai_native", "model_profile": "auto" },
+        { "tool": "claude_code", "backend": "anthropic", "model_profile": "claude_primary" },
+        { "tool": "codex_cli", "backend": "openrouter", "model_profile": "openrouter_dynamic" }
+      ]
+    },
+    "openai_conservation": {
+      "chain": [
+        { "tool": "codex_cli", "backend": "openai_native", "model_profile": "auto" },
+        { "tool": "codex_cli", "backend": "openrouter", "model_profile": "openrouter_minimax" },
+        { "tool": "claude_code", "backend": "anthropic", "model_profile": "claude_primary" }
+      ]
+    },
+    "claude_backup": {
+      "chain": [
+        { "tool": "claude_code", "backend": "anthropic", "model_profile": "auto" },
+        { "tool": "codex_cli", "backend": "openrouter", "model_profile": "openrouter_dynamic" }
+      ]
+    },
+    "openrouter_fallback": {
+      "chain": [
+        { "tool": "codex_cli", "backend": "openrouter", "model_profile": "openrouter_minimax" }
+      ]
+    },
     "normal": {
       "chain": [
         { "tool": "codex_cli", "backend": "openai_native", "model_profile": "codex_primary" },

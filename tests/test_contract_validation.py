@@ -71,9 +71,9 @@ class TestRouteDecisionContract:
         assert rd.fallback_from is None or isinstance(rd.fallback_from, str)
 
     def test_default_state_is_normal(self):
-        """Default state is 'normal'."""
+        """Default state is 'openai_primary' (new 4-state default)."""
         rd = RouteDecision()
-        assert rd.state == "normal"
+        assert rd.state == "openai_primary"
 
 
 # ---------------------------------------------------------------------------

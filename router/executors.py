@@ -370,14 +370,23 @@ def _openrouter_request(
 # Claude Code
 # ---------------------------------------------------------------------------
 
-def run_claude(meta: TaskMeta) -> ExecutorResult:
-    """Run Claude Code (Anthropic backend)."""
+def run_claude(meta: TaskMeta, *, model: Optional[str] = None) -> ExecutorResult:
+    """Run Claude Code (Anthropic backend).
+
+    Args:
+        meta: Task metadata.
+        model: Optional model string override (e.g. "claude-sonnet-4.6" or "claude-opus-4.6").
+    """
     task_id = meta.task_id or ""
     cwd = meta.cwd or meta.repo_path
 
+    cmd = ["claude", "-p", meta.summary or task_id]
+    if model:
+        cmd.extend(["--model", model])
+
     start = time.time()
     returncode, stdout, stderr, timed_out = _run_subprocess(
-        ["claude", "-p", meta.summary or task_id],
+        cmd,
         cwd=cwd
     )
     latency_ms = int((time.time() - start) * 1000)

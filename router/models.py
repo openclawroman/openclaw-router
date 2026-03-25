@@ -36,9 +36,25 @@ class TaskRisk(str, Enum):
 
 
 class CodexState(str, Enum):
-    """Codex usage state."""
-    NORMAL = "normal"
-    LAST10 = "last10"
+    """Codex usage state — 4 subscription-budget-driven states."""
+    OPENAI_PRIMARY = "openai_primary"
+    OPENAI_CONSERVATION = "openai_conservation"
+    CLAUDE_BACKUP = "claude_backup"
+    OPENROUTER_FALLBACK = "openrouter_fallback"
+
+    # Backward compat aliases
+    NORMAL = "openai_primary"
+    LAST10 = "claude_backup"
+
+
+class ErrorType(str, Enum):
+    """Error type classification."""
+    AUTH_ERROR = "auth_error"
+    RATE_LIMITED = "rate_limited"
+    QUOTA_EXHAUSTED = "quota_exhausted"
+    EXECUTION_ERROR = "execution_error"
+    TIMEOUT = "timeout"
+    INVALID_RESPONSE = "invalid_response"
 
 
 class Executor(str, Enum):
@@ -61,8 +77,11 @@ class ModelProfile(str, Enum):
     CODEX_GPT54 = "codex_gpt54"
     CODEX_GPT54_MINI = "codex_gpt54_mini"
     CLAUDE_PRIMARY = "claude_primary"
+    CLAUDE_SONNET = "claude_sonnet"
+    CLAUDE_OPUS = "claude_opus"
     OPENROUTER_MINIMAX = "openrouter_minimax"
     OPENROUTER_KIMI = "openrouter_kimi"
+    OPENROUTER_MIMO = "openrouter_mimo"
     OPENROUTER_DYNAMIC = "openrouter_dynamic"
 
 
@@ -95,7 +114,7 @@ class TaskMeta:
 class RouteDecision:
     """Output decision from the router — which chain was chosen and why."""
     task_id: str = ""
-    state: str = "normal"  # normal|last10
+    state: str = "openai_primary"
     chain: List[ChainEntry] = field(default_factory=list)
     reason: str = ""
     attempted_fallback: bool = False
