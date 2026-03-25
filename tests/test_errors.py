@@ -20,6 +20,7 @@ from router.errors import (
     ProviderTimeoutError,
     TransientNetworkError,
     OpenRouterError,
+    ModelNotFoundError,
     # Non-eligible classes
     InvalidPayloadError,
     MissingRepoPathError,
@@ -28,6 +29,8 @@ from router.errors import (
     ToolchainError,
     TemplateRenderError,
     UnsupportedTaskError,
+    ContextTooLongError,
+    ContentFilteredError,
     # Legacy aliases
     CodexToolError,
     ClaudeToolError,
@@ -38,7 +41,7 @@ from router.errors import (
 
 class TestConstants:
     def test_eligible_fallback_errors_count(self):
-        assert len(ELIGIBLE_FALLBACK_ERRORS) == 6
+        assert len(ELIGIBLE_FALLBACK_ERRORS) == 7
 
     def test_eligible_fallback_errors_contents(self):
         assert ELIGIBLE_FALLBACK_ERRORS == {
@@ -48,10 +51,11 @@ class TestConstants:
             "provider_unavailable",
             "provider_timeout",
             "transient_network_error",
+            "model_not_found",
         }
 
     def test_non_eligible_errors_count(self):
-        assert len(NON_ELIGIBLE_ERRORS) == 7
+        assert len(NON_ELIGIBLE_ERRORS) == 9
 
     def test_non_eligible_errors_contents(self):
         assert NON_ELIGIBLE_ERRORS == {
@@ -62,11 +66,13 @@ class TestConstants:
             "toolchain_error",
             "template_render_error",
             "unsupported_task",
+            "context_too_long",
+            "content_filtered",
         }
 
     def test_normalized_error_types_is_union(self):
         assert NORMALIZED_ERROR_TYPES == ELIGIBLE_FALLBACK_ERRORS | NON_ELIGIBLE_ERRORS
-        assert len(NORMALIZED_ERROR_TYPES) == 13
+        assert len(NORMALIZED_ERROR_TYPES) == 16
 
 
 # ── can_fallback ─────────────────────────────────────────────────────────────
@@ -79,6 +85,7 @@ class TestCanFallback:
         "provider_unavailable",
         "provider_timeout",
         "transient_network_error",
+        "model_not_found",
     ])
     def test_eligible_errors_can_fallback(self, error_type):
         assert can_fallback(error_type) is True
@@ -91,6 +98,8 @@ class TestCanFallback:
         "toolchain_error",
         "template_render_error",
         "unsupported_task",
+        "context_too_long",
+        "content_filtered",
     ])
     def test_non_eligible_errors_cannot_fallback(self, error_type):
         assert can_fallback(error_type) is False
@@ -279,6 +288,15 @@ class TestExecutorError:
     def test_unsupported_task_error_type(self):
         assert UnsupportedTaskError().error_type == "unsupported_task"
 
+    def test_model_not_found_error_type(self):
+        assert ModelNotFoundError().error_type == "model_not_found"
+
+    def test_context_too_long_error_type(self):
+        assert ContextTooLongError().error_type == "context_too_long"
+
+    def test_content_filtered_error_type(self):
+        assert ContentFilteredError().error_type == "content_filtered"
+
     def test_codex_tool_error_maps_to_toolchain(self):
         """Legacy CodexToolError now maps to toolchain_error."""
         assert CodexToolError().error_type == "toolchain_error"
@@ -298,6 +316,7 @@ class TestExecutorError:
             TransientNetworkError, InvalidPayloadError, MissingRepoPathError,
             PermissionDeniedLocalError, GitConflictError, ToolchainError,
             TemplateRenderError, UnsupportedTaskError, CodexToolError, ClaudeToolError,
+            ModelNotFoundError, ContextTooLongError, ContentFilteredError,
         ]
         for cls in classes:
             err = cls()

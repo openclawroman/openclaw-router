@@ -58,6 +58,11 @@ class TransientNetworkError(ExecutorError):
         super().__init__(message, "transient_network_error")
 
 
+class ModelNotFoundError(ExecutorError):
+    def __init__(self, message: str = "Model not found"):
+        super().__init__(message, "model_not_found")
+
+
 class OpenRouterError(ExecutorError):
     """Generic OpenRouter API error — subclasses set the specific type."""
     def __init__(self, message: str = "OpenRouter API error", error_type: str = "provider_unavailable"):
@@ -115,6 +120,16 @@ class UnsupportedTaskError(ExecutorError):
         super().__init__(message, "unsupported_task")
 
 
+class ContextTooLongError(ExecutorError):
+    def __init__(self, message: str = "Context too long"):
+        super().__init__(message, "context_too_long")
+
+
+class ContentFilteredError(ExecutorError):
+    def __init__(self, message: str = "Content filtered"):
+        super().__init__(message, "content_filtered")
+
+
 # ── Non-executor router errors ───────────────────────────────────────────────
 
 class ConfigurationError(RouterError):
@@ -144,6 +159,7 @@ ELIGIBLE_FALLBACK_ERRORS = {
     "provider_unavailable",
     "provider_timeout",
     "transient_network_error",
+    "model_not_found",
 }
 
 NON_ELIGIBLE_ERRORS = {
@@ -154,6 +170,8 @@ NON_ELIGIBLE_ERRORS = {
     "toolchain_error",
     "template_render_error",
     "unsupported_task",
+    "context_too_long",
+    "content_filtered",
 }
 
 NORMALIZED_ERROR_TYPES = ELIGIBLE_FALLBACK_ERRORS | NON_ELIGIBLE_ERRORS
@@ -168,6 +186,26 @@ def can_fallback(error_type: str) -> bool:
 
 # Keyword → error type mapping (order matters: first match wins)
 _ERROR_PATTERNS: list[tuple[str, str]] = [
+    # Model errors (new)
+    (r"model.?not.?found", "model_not_found"),
+    (r"model.?not.?available", "model_not_found"),
+    (r"no.?such.?model", "model_not_found"),
+    (r"model.?does.?not.?exist", "model_not_found"),
+    (r"\bmodel\b.*\bnot\b", "model_not_found"),
+    # Context errors (new)
+    (r"context.?too.?long", "context_too_long"),
+    (r"maximum.?context", "context_too_long"),
+    (r"token.?limit", "context_too_long"),
+    (r"input.?too.?long", "context_too_long"),
+    (r"context.?length", "context_too_long"),
+    (r"max.?tokens.?exceeded", "context_too_long"),
+    # Content filter errors (new)
+    (r"content.?filter", "content_filtered"),
+    (r"safety.?filter", "content_filtered"),
+    (r"content.?policy", "content_filtered"),
+    (r"flagged", "content_filtered"),
+    (r"blocked.?content", "content_filtered"),
+    (r"harmful", "content_filtered"),
     # HTTP status codes
     (r"\b401\b", "auth_error"),
     (r"\b429\b", "rate_limited"),
