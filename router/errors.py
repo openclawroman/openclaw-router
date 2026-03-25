@@ -170,6 +170,7 @@ def can_fallback(error_type: str) -> bool:
 _ERROR_PATTERNS: list[tuple[str, str]] = [
     # HTTP status codes
     (r"\b401\b", "auth_error"),
+    (r"\b402\b", "quota_exhausted"),
     (r"\b429\b", "rate_limited"),
     (r"\b403\b", "permission_denied_local"),
     (r"\b500\b", "provider_unavailable"),
@@ -179,6 +180,7 @@ _ERROR_PATTERNS: list[tuple[str, str]] = [
     (r"\b400\b", "invalid_payload"),
     (r"\b422\b", "invalid_payload"),
     # Auth
+    (r"api.?key", "auth_error"),
     (r"auth", "auth_error"),
     (r"unauthorized", "auth_error"),
     (r"forbidden", "permission_denied_local"),
@@ -187,6 +189,7 @@ _ERROR_PATTERNS: list[tuple[str, str]] = [
     (r"too.?many.?request", "rate_limited"),
     (r"throttl", "rate_limited"),
     (r"quota", "quota_exhausted"),
+    (r"credit", "quota_exhausted"),
     (r"exceed", "quota_exhausted"),
     (r"\blimit\b", "quota_exhausted"),
     # Timeout
@@ -194,14 +197,18 @@ _ERROR_PATTERNS: list[tuple[str, str]] = [
     (r"timed?\s*out", "provider_timeout"),
     # Provider availability
     (r"unavailable", "provider_unavailable"),
+    (r"overload", "provider_unavailable"),
+    (r"server.?error", "provider_unavailable"),
     (r"service.?down", "provider_unavailable"),
     (r"maintenance", "provider_unavailable"),
     # Network
     (r"network", "transient_network_error"),
     (r"connection.?refus", "transient_network_error"),
+    (r"connection.?reset", "transient_network_error"),
     (r"dns", "transient_network_error"),
     (r"econnrefused", "transient_network_error"),
     (r"econnreset", "transient_network_error"),
+    (r"enotfound", "transient_network_error"),
     (r"etimedout", "transient_network_error"),
     # Local errors
     (r"permission.?denied", "permission_denied_local"),
@@ -232,6 +239,9 @@ def normalize_error(raw) -> str:
 
     Returns one of NORMALIZED_ERROR_TYPES or "unknown_error".
     """
+    if raw is None:
+        return "unknown_error"
+
     if isinstance(raw, int):
         raw = str(raw)
 
