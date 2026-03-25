@@ -16,6 +16,7 @@ from .state_store import StateStore
 from .executors import run_codex, run_claude, run_openrouter
 from .errors import ExecutorError, ELIGIBLE_FALLBACK_ERRORS, can_fallback
 from .config_loader import get_model, get_reliability_config
+from .attempt_logger import AttemptLogger, ExecutorAttempt, RoutingTrace
 from .circuit_breaker import CircuitBreaker
 
 
@@ -287,6 +288,10 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
     chain_timeout_s = reliability.get("chain_timeout_s", 600)
     max_fallbacks = reliability.get("max_fallbacks", 3)
 
+    attempt_logger = AttemptLogger()
+    attempt_start = time.monotonic()
+    attempts: List = []
+
     start_time = time.monotonic()
 
     state_str = state.value
@@ -327,11 +332,31 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
             # Circuit breaker: skip if provider is open
             if not breaker.is_available(entry.tool, entry.backend):
                 providers_skipped.append(f"{entry.tool}:{entry.backend}")
+                attempts.append(ExecutorAttempt(
+                    tool=entry.tool,
+                    backend=entry.backend,
+                    model_profile=entry.model_profile,
+                    success=False,
+                    latency_ms=0,
+                    skipped=True,
+                    skip_reason="circuit_breaker_open",
+                ))
                 continue
 
             last_error = None
             try:
+                exec_start = time.monotonic()
                 result = _run_executor(entry, task, trace_id=trace_id)
+                exec_latency = int((time.monotonic() - exec_start) * 1000)
+                attempts.append(ExecutorAttempt(
+                    tool=result.tool,
+                    backend=result.backend,
+                    model_profile=result.model_profile,
+                    success=result.success,
+                    latency_ms=exec_latency,
+                    normalized_error=result.normalized_error,
+                    cost_estimate_usd=result.cost_estimate_usd,
+                ))
                 if result.success:
                     breaker.record_success(entry.tool, entry.backend)
                     break
@@ -353,6 +378,15 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
             except ExecutorError as e:
                 last_error = e.error_type
                 breaker.record_failure(entry.tool, entry.backend, e.error_type)
+                exec_latency = int((time.monotonic() - exec_start) * 1000)
+                attempts.append(ExecutorAttempt(
+                    tool=entry.tool,
+                    backend=entry.backend,
+                    model_profile=entry.model_profile,
+                    success=False,
+                    latency_ms=exec_latency,
+                    normalized_error=e.error_type,
+                ))
                 result = ExecutorResult(
                     task_id=task.task_id,
                     tool=entry.tool,
@@ -380,6 +414,24 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                 normalized_error=last_error or "unknown_error",
                 trace_id=trace_id,
             )
+
+        # Write attempt trace
+        total_latency = int((time.monotonic() - attempt_start) * 1000)
+        trace = RoutingTrace(
+            trace_id=trace_id,
+            task_id=task.task_id,
+            state=state_str,
+            chain=[{"tool": c.tool, "backend": c.backend, "model_profile": c.model_profile} for c in chain],
+            attempts=attempts,
+            providers_skipped=providers_skipped,
+            chain_timed_out=chain_timed_out,
+            fallback_count=fallback_count,
+            total_latency_ms=total_latency,
+            final_tool=result.tool if result else "none",
+            final_success=result.success if result else False,
+            final_error=result.normalized_error if result and not result.success else None,
+        )
+        attempt_logger.log_trace(trace)
 
         decision = RouteDecision(
             task_id=task.task_id,
