@@ -1,6 +1,7 @@
 """Routing policy logic based on Codex state and task characteristics."""
 
 import os
+from enum import Enum
 from pathlib import Path
 from typing import Optional, List, Tuple
 
@@ -210,3 +211,69 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
     )
 
     return decision, result
+
+
+# ---------------------------------------------------------------------------
+# Reviewer independence
+# ---------------------------------------------------------------------------
+
+def get_review_chain(task: TaskMeta, generate_executor_key: str) -> List[ChainEntry]:
+    """
+    Build review chain excluding the executor that generated the code.
+    generate_executor_key is like "codex_cli:openai_native" or "claude_code:anthropic".
+    """
+    state = resolve_state()
+    full_chain = build_chain(task, state)
+    gen_tool, gen_backend = generate_executor_key.split(":", 1)
+    return [
+        entry for entry in full_chain
+        if not (entry.tool == gen_tool and entry.backend == gen_backend)
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Review modes
+# ---------------------------------------------------------------------------
+
+class ReviewMode(str, Enum):
+    FAST = "fast"
+    DEEP = "deep"
+
+
+def select_review_mode(task: TaskMeta) -> ReviewMode:
+    """Fast by default, deep for high risk or architecture changes."""
+    if task.risk == TaskRisk.HIGH or task.task_class == TaskClass.REPO_ARCHITECTURE_CHANGE:
+        return ReviewMode.DEEP
+    return ReviewMode.FAST
+
+
+# ---------------------------------------------------------------------------
+# Merge gate
+# ---------------------------------------------------------------------------
+
+def merge_gate(
+    generator_result: ExecutorResult,
+    reviewer_result: ExecutorResult,
+    task: TaskMeta,
+) -> Tuple[bool, List[str]]:
+    """
+    Check all merge gate conditions. Returns (passed, list_of_failure_reasons).
+    """
+    reasons: List[str] = []
+
+    # Generator must succeed
+    if not generator_result.success:
+        reasons.append("Generator result did not succeed")
+
+    # Reviewer must succeed
+    if not reviewer_result.success:
+        reasons.append("Reviewer result did not succeed")
+
+    # Reviewer must be independent (different executor/backend)
+    gen_key = (generator_result.tool, generator_result.backend)
+    rev_key = (reviewer_result.tool, reviewer_result.backend)
+    if gen_key == rev_key:
+        reasons.append("Reviewer is the same as generator — independent review required")
+
+    passed = len(reasons) == 0
+    return passed, reasons
