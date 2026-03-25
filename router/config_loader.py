@@ -68,12 +68,15 @@ def list_models() -> List[str]:
 
 
 def get_reliability_config() -> dict:
-    """Get reliability config section."""
+    """Get reliability/fallback configuration with defaults."""
     config = load_config()
-    return config.get("reliability", {
-        "chain_timeout_s": 600,
-        "max_fallbacks": 3,
-    })
+    reliability = config.get("reliability", {})
+    return {
+        "chain_timeout_s": reliability.get("chain_timeout_s", 600),
+        "drain_timeout_s": reliability.get("drain_timeout_s", 30),
+        "max_retries": reliability.get("max_retries", 2),
+        "max_fallbacks": reliability.get("max_fallbacks", 3),
+    }
 
 
 def reload_config(config_path: Optional[Path] = None):

@@ -251,6 +251,29 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
     Resolves state, builds chain, executes chain with fallback,
     and returns (RouteDecision, ExecutorResult).
     """
+    from .health import get_shutdown_manager
+
+    shutdown_mgr = get_shutdown_manager()
+
+    if not shutdown_mgr.should_accept_new_tasks():
+        return (
+            RouteDecision(
+                task_id=task.task_id,
+                state="shutdown",
+                chain=[],
+                reason="Shutdown in progress",
+            ),
+            ExecutorResult(
+                task_id=task.task_id,
+                tool="router",
+                backend="shutdown",
+                model_profile="",
+                success=False,
+                normalized_error="shutdown_in_progress",
+                final_summary="Router is shutting down, not accepting new tasks",
+            ),
+        )
+
     state = resolve_state()
     chain = build_chain(task, state)
     reliability = get_reliability_config()
@@ -274,36 +297,64 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
     chain_timed_out = False
     is_first_executor = True
 
-    for entry in chain:
-        # Check chain timeout
-        elapsed = time.monotonic() - start_time
-        if elapsed >= chain_timeout_s:
-            chain_timed_out = True
-            result = result or ExecutorResult(
-                task_id=task.task_id,
-                tool="chain",
-                backend="timeout",
-                model_profile="",
-                success=False,
-                normalized_error="chain_timeout",
-            )
-            break
+    # Register task as in-flight
+    shutdown_mgr.register_task(task.task_id, state_str, chain[0].tool if chain else "none")
 
-        # Circuit breaker: skip if provider is open
-        if not breaker.is_available(entry.tool, entry.backend):
-            providers_skipped.append(f"{entry.tool}:{entry.backend}")
-            continue
-
-        last_error = None
-        try:
-            result = _run_executor(entry, task)
-            if result.success:
-                breaker.record_success(entry.tool, entry.backend)
+    try:
+        for entry in chain:
+            # Check chain timeout
+            elapsed = time.monotonic() - start_time
+            if elapsed >= chain_timeout_s:
+                chain_timed_out = True
+                result = result or ExecutorResult(
+                    task_id=task.task_id,
+                    tool="chain",
+                    backend="timeout",
+                    model_profile="",
+                    success=False,
+                    normalized_error="chain_timeout",
+                )
                 break
-            # Non-success but no exception — check if fallback-eligible
-            if result.normalized_error:
-                breaker.record_failure(entry.tool, entry.backend, result.normalized_error)
-            if result.normalized_error and can_fallback(result.normalized_error):
+
+            # Circuit breaker: skip if provider is open
+            if not breaker.is_available(entry.tool, entry.backend):
+                providers_skipped.append(f"{entry.tool}:{entry.backend}")
+                continue
+
+            last_error = None
+            try:
+                result = _run_executor(entry, task)
+                if result.success:
+                    breaker.record_success(entry.tool, entry.backend)
+                    break
+                # Non-success but no exception — check if fallback-eligible
+                if result.normalized_error:
+                    breaker.record_failure(entry.tool, entry.backend, result.normalized_error)
+                if result.normalized_error and can_fallback(result.normalized_error):
+                    if fallback_from is None:
+                        fallback_from = entry.tool
+                    if is_first_executor:
+                        is_first_executor = False
+                    else:
+                        fallback_count += 1
+                    if fallback_count >= max_fallbacks:
+                        break
+                    continue
+                else:
+                    break
+            except ExecutorError as e:
+                last_error = e.error_type
+                breaker.record_failure(entry.tool, entry.backend, e.error_type)
+                result = ExecutorResult(
+                    task_id=task.task_id,
+                    tool=entry.tool,
+                    backend=entry.backend,
+                    model_profile=entry.model_profile,
+                    success=False,
+                    normalized_error=e.error_type,
+                )
+                if not can_fallback(e.error_type):
+                    break
                 if fallback_from is None:
                     fallback_from = entry.tool
                 if is_first_executor:
@@ -312,51 +363,29 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                     fallback_count += 1
                 if fallback_count >= max_fallbacks:
                     break
-                continue
-            else:
-                break
-        except ExecutorError as e:
-            last_error = e.error_type
-            breaker.record_failure(entry.tool, entry.backend, e.error_type)
+
+        if result is None:
             result = ExecutorResult(
                 task_id=task.task_id,
-                tool=entry.tool,
-                backend=entry.backend,
-                model_profile=entry.model_profile,
                 success=False,
-                normalized_error=e.error_type,
+                normalized_error=last_error or "unknown_error",
             )
-            if not can_fallback(e.error_type):
-                break
-            if fallback_from is None:
-                fallback_from = entry.tool
-            if is_first_executor:
-                is_first_executor = False
-            else:
-                fallback_count += 1
-            if fallback_count >= max_fallbacks:
-                break
 
-    if result is None:
-        result = ExecutorResult(
+        decision = RouteDecision(
             task_id=task.task_id,
-            success=False,
-            normalized_error=last_error or "unknown_error",
+            state=state_str,
+            chain=chain,
+            reason=reason,
+            attempted_fallback=fallback_from is not None,
+            fallback_from=fallback_from,
+            providers_skipped=providers_skipped,
+            chain_timed_out=chain_timed_out,
+            fallback_count=fallback_count,
         )
 
-    decision = RouteDecision(
-        task_id=task.task_id,
-        state=state_str,
-        chain=chain,
-        reason=reason,
-        attempted_fallback=fallback_from is not None,
-        fallback_from=fallback_from,
-        providers_skipped=providers_skipped,
-        chain_timed_out=chain_timed_out,
-        fallback_count=fallback_count,
-    )
-
-    return decision, result
+        return decision, result
+    finally:
+        shutdown_mgr.unregister_task(task.task_id)
 
 
 # ---------------------------------------------------------------------------
