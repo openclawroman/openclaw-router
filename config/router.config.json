@@ -173,5 +173,14 @@
   },
   "logging": {
     "jsonl_path": "runtime/routing.jsonl"
+  },
+  "reliability": {
+    "chain_timeout_s": 600,
+    "max_fallbacks": 3,
+    "circuit_breaker": {
+      "threshold": 5,
+      "window_s": 60,
+      "cooldown_s": 120
+    }
   }
 }

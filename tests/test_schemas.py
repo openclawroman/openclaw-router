@@ -169,6 +169,7 @@ class TestRouteDecision(unittest.TestCase):
         expected = {
             "task_id", "state", "chain", "reason",
             "attempted_fallback", "fallback_from",
+            "providers_skipped",
         }
         actual = set(vars(decision).keys())
         self.assertEqual(actual, expected)
