@@ -1,5 +1,6 @@
 """Config loader for router.config.json."""
 
+import copy
 import json
 from pathlib import Path
 from typing import Optional, List
@@ -15,14 +16,62 @@ def _get_config_path() -> Path:
     return _active_config_path or CONFIG_PATH
 
 
+def _merge_extends(config: dict, path: Path) -> dict:
+    """Handle _extends inheritance: merge base config with overrides."""
+    if "_extends" not in config:
+        return config
+
+    base_path = path.parent / config["_extends"]
+    with open(base_path) as f:
+        base_config = json.load(f)
+
+    merged = copy.deepcopy(base_config)
+    for key, value in config.items():
+        if key.startswith("_"):
+            continue  # skip _extends, _comment
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key].update(value)
+        else:
+            merged[key] = value
+    return merged
+
+
 def load_config(config_path: Optional[Path] = None) -> dict:
-    """Load router config from JSON file. Caches after first load."""
+    """Load router config. Supports environment overrides.
+
+    Path resolution priority:
+    1. config_path argument (explicit)
+    2. Active config path (from previous reload_config)
+    3. Environment resolution (CLI flag > env var > environment default)
+    """
     global _config_cache
+
     if _config_cache is not None and config_path is None:
         return _config_cache
-    path = config_path or _get_config_path()
+
+    # Resolve path
+    if config_path is not None:
+        path = Path(config_path)
+    elif _active_config_path is not None:
+        path = _active_config_path
+    else:
+        from .environments import get_config_path, apply_env_overrides
+        path = get_config_path()
+
     with open(path) as f:
         config = json.load(f)
+
+    # Handle _extends (base config inheritance)
+    config = _merge_extends(config, path)
+
+    # Apply environment overrides (only when using environment resolution)
+    if config_path is None and _active_config_path is None:
+        try:
+            from .environments import apply_env_overrides as _apply
+            config = _apply(config)
+        except ImportError:
+            pass
+
     if config_path is None:
         _config_cache = config
     return config
