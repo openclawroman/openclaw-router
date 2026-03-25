@@ -60,6 +60,15 @@ if "--health" in sys.argv:
     print(json.dumps(report, indent=2))
     sys.exit(0)
 
+# Config validation mode
+if "--validate-config" in sys.argv:
+    from router.config_validator import validate_config_file
+    result = validate_config_file()
+    print(result.summary())
+    for error in result.errors:
+        print(f"  [{error.severity}] {error.path}: {error.message}")
+    sys.exit(0 if result.valid else 1)
+
 from router import (
     TaskMeta, TaskClass, TaskRisk, TaskModality,
     route_task, RoutingLogger, RouterError

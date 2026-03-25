@@ -16,16 +16,34 @@ def _get_config_path() -> Path:
 
 
 def load_config(config_path: Optional[Path] = None) -> dict:
-    """Load router config from JSON file. Caches after first load."""
+    """Load router config from JSON file. Caches after first load.
+    
+    Raises ConfigValidationError if config is invalid.
+    """
     global _config_cache
     if _config_cache is not None and config_path is None:
         return _config_cache
     path = config_path or _get_config_path()
     with open(path) as f:
         config = json.load(f)
+    
+    # Validate on load (skip when testing with a custom config path)
+    if config_path is None and _active_config_path is None:
+        from .config_validator import validate_config
+        result = validate_config(config)
+        if not result.valid:
+            raise ConfigValidationError(result)
+    
     if config_path is None:
         _config_cache = config
     return config
+
+
+class ConfigValidationError(Exception):
+    """Raised when config validation fails."""
+    def __init__(self, validation_result):
+        self.result = validation_result
+        super().__init__(validation_result.summary())
 
 
 def get_model(profile: str) -> str:
