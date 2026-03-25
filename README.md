@@ -40,6 +40,9 @@
 - **JSON in, JSON out** — pipe-friendly `stdin`/`stdout` protocol
 - **Subscription-aware routing** — 4-state system that maximizes paid subscription buckets before falling back to raw API usage
 - **Structured logging** — every routing decision logged to JSONL
+- **Trace ID correlation** — every routing decision has a unique 12-char trace ID for log correlation across fallback attempts
+- **Metrics aggregation** — built-in metrics collector for task distribution, model usage, fallback rates, and cost per provider
+- **Atomic state writes** — crash-safe state file updates with history tracking and anti-flap protection
 
 ---
 

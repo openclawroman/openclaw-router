@@ -225,6 +225,27 @@ These inform transitions from `openai_primary` to `openai_conservation` and beyo
 
 ---
 
+### Observability
+
+| Feature | Implementation | Location |
+|---------|---------------|----------|
+| Trace ID | 12-char hex uuid4 per route decision | `router/policy.py:route_task()` |
+| Structured logging | routing_trace JSONL per decision | `router/attempt_logger.py` |
+| Metrics aggregation | MetricsCollector from JSONL | `router/metrics.py` |
+| Circuit breaker logging | providers_skipped in trace | `router/circuit_breaker.py` |
+| State history | codex_state_history.json | `router/state_store.py` |
+
+### State Management
+
+| Feature | Implementation |
+|---------|---------------|
+| Atomic writes | tempfile + os.replace + fsync |
+| Anti-flap | 300s minimum between transitions |
+| Emergency override | OPENAI_PRIMARY, CLAUDE_BACKUP always allowed |
+| State history | Last 50 transitions with timestamps |
+
+---
+
 ## Routing Contract
 
 ### Input: OpenClaw → ai-code-runner
