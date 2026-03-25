@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field, asdict
 
+from .audit import AuditChain, init_chain
+
 
 @dataclass
 class ExecutorAttempt:
@@ -69,10 +71,12 @@ class AttemptLogger:
         from .logger import DEFAULT_LOG_PATH
         self.log_path = log_path or DEFAULT_LOG_PATH
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        self._chain = AuditChain(last_hash=init_chain(self.log_path))
 
     def log_trace(self, trace: RoutingTrace) -> None:
         """Write a routing trace to the log file."""
         entry = {"type": "routing_trace", **trace.to_dict()}
+        self._chain.chain_entry(entry)
         with open(self.log_path, "a") as f:
             f.write(json.dumps(entry) + "\n")
 
