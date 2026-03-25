@@ -152,8 +152,8 @@ class StateStore:
                 return 0
 
             try:
-                lines = self.wal_path.read_text().strip().splitlines()
-            except (IOError, OSError):
+                lines = self.wal_path.read_text(encoding="utf-8", errors="replace").strip().splitlines()
+            except (IOError, OSError, UnicodeDecodeError):
                 return 0
 
             if not lines:
@@ -166,7 +166,9 @@ class StateStore:
                 if not line:
                     continue
                 try:
-                    entries.append(json.loads(line))
+                    parsed = json.loads(line)
+                    if isinstance(parsed, dict):
+                        entries.append(parsed)
                 except (json.JSONDecodeError, ValueError, TypeError):
                     continue  # corrupted line, skip
 
