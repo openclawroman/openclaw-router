@@ -294,27 +294,27 @@ class TestConfigFilePermissions:
 
     def test_restrict_permissions_helper(self, tmp_path):
         """Test the restrict_permissions helper function."""
-        from router.config_loader import restrict_permissions
+        from router.config_loader import _restrict_permissions
 
         test_file = tmp_path / "test_config.json"
         test_file.write_text('{"key": "value"}')
-        restrict_permissions(test_file)
+        _restrict_permissions(test_file)
 
         if IS_UNIX:
             mode = _get_file_mode(test_file)
             assert mode == 0o600, f"Expected 0o600, got {oct(mode)}"
 
     def test_restrict_permissions_does_not_crash_on_failure(self, tmp_path):
-        """restrict_permissions should not crash if chmod fails."""
-        from router.config_loader import restrict_permissions
+        """_restrict_permissions should not crash if chmod fails."""
+        from router.config_loader import _restrict_permissions
 
         test_file = tmp_path / "test_config.json"
         test_file.write_text('{"key": "value"}')
 
         with patch("router.config_loader.os.chmod", side_effect=OSError("not supported")):
-            restrict_permissions(test_file)  # Should not raise
+            _restrict_permissions(test_file)  # Should not raise
 
     def test_restrict_permissions_called_on_load_config(self, tmp_path):
-        """restrict_permissions should be a callable utility."""
-        from router.config_loader import restrict_permissions
-        assert callable(restrict_permissions)
+        """_restrict_permissions should be a callable utility."""
+        from router.config_loader import _restrict_permissions
+        assert callable(_restrict_permissions)

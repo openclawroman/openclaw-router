@@ -23,7 +23,7 @@ _config_lock = Lock()
 _active_config_path: Optional[Path] = None
 
 
-def restrict_permissions(path: Path) -> None:
+def _restrict_permissions(path: Path) -> None:
     """Best-effort: set file permissions to owner-only read/write (0o600).
 
     Silently skips on platforms/filesystems where chmod fails (e.g. Windows).
