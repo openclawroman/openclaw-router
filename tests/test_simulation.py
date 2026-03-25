@@ -277,3 +277,166 @@ class TestSimulation:
         # Also verify chain was built with kimi
         openrouter_entries = [e for e in decision.chain if e.backend == "openrouter"]
         assert openrouter_entries[-1].model_profile == "openrouter_kimi"
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # New 4-state scenarios
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def test_scenario_11_openai_primary_success(self, monkeypatch):
+        """openai_primary: codex handles it, no fallback needed."""
+        config = MockExecutorConfig()
+        config.set_executor("codex_cli:openai_native", success=True)
+        _patch_executors(monkeypatch, config)
+        _set_state(monkeypatch, CodexState.OPENAI_PRIMARY)
+
+        task = _make_task(task_id="sim-11")
+        decision, result = route_task(task)
+
+        assert result.success
+        assert result.tool == "codex_cli"
+        assert result.backend == "openai_native"
+        assert not decision.attempted_fallback
+        assert decision.state == "openai_primary"
+
+    def test_scenario_12_openai_conservation_mini_handled(self, monkeypatch):
+        """openai_conservation: gpt-5.4-mini handles the task."""
+        config = MockExecutorConfig()
+        config.set_executor("codex_cli:openai_native", success=True)
+        _patch_executors(monkeypatch, config)
+        _set_state(monkeypatch, CodexState.OPENAI_CONSERVATION)
+
+        task = _make_task(task_id="sim-12")
+        decision, result = route_task(task)
+
+        assert result.success
+        assert result.tool == "codex_cli"
+        assert result.backend == "openai_native"
+        # Should have codex_gpt54_mini in chain for non-critical
+        assert decision.chain[0].model_profile == "codex_gpt54_mini"
+        assert not decision.attempted_fallback
+
+    def test_scenario_13_openai_conservation_escalates_to_full(self, monkeypatch):
+        """openai_conservation: critical task uses gpt-5.4."""
+        config = MockExecutorConfig()
+        config.set_executor("codex_cli:openai_native", success=True)
+        _patch_executors(monkeypatch, config)
+        _set_state(monkeypatch, CodexState.OPENAI_CONSERVATION)
+
+        task = _make_task(task_id="sim-13", risk=TaskRisk.CRITICAL)
+        decision, result = route_task(task)
+
+        assert result.success
+        assert result.tool == "codex_cli"
+        # Critical risk should escalate to full gpt-5.4
+        assert decision.chain[0].model_profile == "codex_gpt54"
+
+    def test_scenario_14_claude_backup_sonnet_handles(self, monkeypatch):
+        """claude_backup: Claude Code Sonnet handles the task."""
+        config = MockExecutorConfig()
+        config.set_executor("claude_code:anthropic", success=True)
+        _patch_executors(monkeypatch, config)
+        _set_state(monkeypatch, CodexState.CLAUDE_BACKUP)
+
+        task = _make_task(task_id="sim-14")
+        decision, result = route_task(task)
+
+        assert result.success
+        assert result.tool == "claude_code"
+        assert result.backend == "anthropic"
+        assert decision.chain[0].model_profile == "claude_sonnet"
+        assert decision.state == "claude_backup"
+
+    def test_scenario_15_claude_backup_opus_hard_case(self, monkeypatch):
+        """claude_backup: architecture task uses Opus."""
+        config = MockExecutorConfig()
+        config.set_executor("claude_code:anthropic", success=True)
+        _patch_executors(monkeypatch, config)
+        _set_state(monkeypatch, CodexState.CLAUDE_BACKUP)
+
+        task = _make_task(
+            task_id="sim-15",
+            task_class=TaskClass.REPO_ARCHITECTURE_CHANGE,
+            risk=TaskRisk.MEDIUM,
+        )
+        decision, result = route_task(task)
+
+        assert result.success
+        assert result.tool == "claude_code"
+        assert decision.chain[0].model_profile == "claude_opus"
+
+    def test_scenario_16_openrouter_fallback_minimax(self, monkeypatch):
+        """openrouter_fallback: MiniMax handles default task."""
+        config = MockExecutorConfig()
+        config.set_executor("codex_cli:openrouter", success=True)
+        _patch_executors(monkeypatch, config)
+        _set_state(monkeypatch, CodexState.OPENROUTER_FALLBACK)
+
+        task = _make_task(task_id="sim-16")
+        decision, result = route_task(task)
+
+        assert result.success
+        assert result.tool == "codex_cli"
+        assert result.backend == "openrouter"
+        assert result.model_profile == "openrouter_minimax"
+        assert decision.state == "openrouter_fallback"
+
+    def test_scenario_17_openrouter_fallback_mimo_hard(self, monkeypatch):
+        """openrouter_fallback: MiMo handles critical task."""
+        config = MockExecutorConfig()
+        config.set_executor("codex_cli:openrouter", success=True)
+        _patch_executors(monkeypatch, config)
+        _set_state(monkeypatch, CodexState.OPENROUTER_FALLBACK)
+
+        task = _make_task(task_id="sim-17", risk=TaskRisk.CRITICAL)
+        decision, result = route_task(task)
+
+        assert result.success
+        assert result.model_profile == "openrouter_mimo"
+
+    def test_scenario_18_openrouter_fallback_kimi_visual(self, monkeypatch):
+        """openrouter_fallback: Kimi handles visual task."""
+        config = MockExecutorConfig()
+        config.set_executor("codex_cli:openrouter", success=True)
+        _patch_executors(monkeypatch, config)
+        _set_state(monkeypatch, CodexState.OPENROUTER_FALLBACK)
+
+        task = _make_task(task_id="sim-18", has_screenshots=True)
+        decision, result = route_task(task)
+
+        assert result.success
+        assert result.model_profile == "openrouter_kimi"
+
+    def test_scenario_19_claude_backup_fallback_to_openrouter(self, monkeypatch):
+        """Claude fails in claude_backup → openrouter succeeds."""
+        config = MockExecutorConfig()
+        config.set_executor("claude_code:anthropic", success=False, normalized_error="rate_limited")
+        config.set_executor("codex_cli:openrouter", success=True)
+        _patch_executors(monkeypatch, config)
+        _set_state(monkeypatch, CodexState.CLAUDE_BACKUP)
+
+        task = _make_task(task_id="sim-19")
+        decision, result = route_task(task)
+
+        assert result.success
+        assert result.tool == "codex_cli"
+        assert result.backend == "openrouter"
+        assert decision.attempted_fallback
+        assert decision.fallback_from == "claude_code"
+
+    def test_scenario_20_openai_conservation_fallback_chain(self, monkeypatch):
+        """openai_conservation: codex fails → openrouter tried before claude."""
+        config = MockExecutorConfig()
+        config.set_executor("codex_cli:openai_native", success=False, normalized_error="quota_exhausted")
+        config.set_executor("codex_cli:openrouter", success=True)
+        config.set_executor("claude_code:anthropic", success=True)
+        _patch_executors(monkeypatch, config)
+        _set_state(monkeypatch, CodexState.OPENAI_CONSERVATION)
+
+        task = _make_task(task_id="sim-20")
+        decision, result = route_task(task)
+
+        # Should succeed at openrouter (chain[1]) before trying claude
+        assert result.success
+        assert result.backend == "openrouter"
+        assert decision.attempted_fallback
+        assert decision.fallback_from == "codex_cli"

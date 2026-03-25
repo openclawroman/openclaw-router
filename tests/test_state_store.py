@@ -185,3 +185,84 @@ class TestSetState:
         store = StateStore(manual_path=manual_path, auto_path=auto_path)
         store.set_auto_state(CodexState.LAST10)
         assert store.get_auto_state() == CodexState.LAST10
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 4-state validation tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestValidateAllFourStates:
+    """_validate_state should accept all 4 new state strings."""
+
+    def test_validate_state_openai_primary(self):
+        assert StateStore._validate_state("openai_primary") == CodexState.OPENAI_PRIMARY
+
+    def test_validate_state_openai_conservation(self):
+        assert StateStore._validate_state("openai_conservation") == CodexState.OPENAI_CONSERVATION
+
+    def test_validate_state_claude_backup(self):
+        assert StateStore._validate_state("claude_backup") == CodexState.CLAUDE_BACKUP
+
+    def test_validate_state_openrouter_fallback(self):
+        assert StateStore._validate_state("openrouter_fallback") == CodexState.OPENROUTER_FALLBACK
+
+    def test_backward_compat_normal_maps_to_openai_primary(self):
+        assert StateStore._validate_state("normal") == CodexState.OPENAI_PRIMARY
+
+    def test_backward_compat_last10_maps_to_claude_backup(self):
+        assert StateStore._validate_state("last10") == CodexState.CLAUDE_BACKUP
+
+
+class TestSetAllFourStates:
+    """Manual/auto state setters should work with all 4 states."""
+
+    def test_set_manual_openai_conservation(self, tmp_config):
+        manual_path, auto_path = tmp_config
+        store = StateStore(manual_path=manual_path, auto_path=auto_path)
+        store.set_manual_state(CodexState.OPENAI_CONSERVATION)
+        assert store.get_manual_state() == CodexState.OPENAI_CONSERVATION
+
+    def test_set_manual_claude_backup(self, tmp_config):
+        manual_path, auto_path = tmp_config
+        store = StateStore(manual_path=manual_path, auto_path=auto_path)
+        store.set_manual_state(CodexState.CLAUDE_BACKUP)
+        assert store.get_manual_state() == CodexState.CLAUDE_BACKUP
+
+    def test_set_manual_openrouter_fallback(self, tmp_config):
+        manual_path, auto_path = tmp_config
+        store = StateStore(manual_path=manual_path, auto_path=auto_path)
+        store.set_manual_state(CodexState.OPENROUTER_FALLBACK)
+        assert store.get_manual_state() == CodexState.OPENROUTER_FALLBACK
+
+    def test_set_auto_openai_conservation(self, tmp_config):
+        manual_path, auto_path = tmp_config
+        store = StateStore(manual_path=manual_path, auto_path=auto_path)
+        store.set_auto_state(CodexState.OPENAI_CONSERVATION)
+        assert store.get_auto_state() == CodexState.OPENAI_CONSERVATION
+
+    def test_set_auto_openrouter_fallback(self, tmp_config):
+        manual_path, auto_path = tmp_config
+        store = StateStore(manual_path=manual_path, auto_path=auto_path)
+        store.set_auto_state(CodexState.OPENROUTER_FALLBACK)
+        assert store.get_auto_state() == CodexState.OPENROUTER_FALLBACK
+
+    def test_manual_conservation_overrides_auto_primary(self, tmp_config):
+        manual_path, auto_path = tmp_config
+        _write_json(auto_path, {"state": "openai_primary"})
+        _write_json(manual_path, {"state": "openai_conservation"})
+        store = StateStore(manual_path=manual_path, auto_path=auto_path)
+        assert store.get_state() == CodexState.OPENAI_CONSERVATION
+
+    def test_auto_fallback_used_when_manual_null(self, tmp_config):
+        manual_path, auto_path = tmp_config
+        _write_json(manual_path, {"state": None})
+        _write_json(auto_path, {"state": "openrouter_fallback"})
+        store = StateStore(manual_path=manual_path, auto_path=auto_path)
+        assert store.get_state() == CodexState.OPENROUTER_FALLBACK
+
+    def test_default_is_openai_primary_when_all_null(self, tmp_config):
+        manual_path, auto_path = tmp_config
+        _write_json(manual_path, {"state": None})
+        _write_json(auto_path, {"state": None})
+        store = StateStore(manual_path=manual_path, auto_path=auto_path)
+        assert store.get_state() == CodexState.OPENAI_PRIMARY
