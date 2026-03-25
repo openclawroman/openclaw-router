@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field, asdict
 
+from .sanitize import sanitize_content
+
 
 @dataclass
 class ExecutorAttempt:
@@ -72,7 +74,7 @@ class AttemptLogger:
 
     def log_trace(self, trace: RoutingTrace) -> None:
         """Write a routing trace to the log file."""
-        entry = {"type": "routing_trace", **trace.to_dict()}
+        entry = sanitize_content({"type": "routing_trace", **trace.to_dict()})
         with open(self.log_path, "a") as f:
             f.write(json.dumps(entry) + "\n")
 

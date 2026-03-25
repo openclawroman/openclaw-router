@@ -20,6 +20,15 @@ from .attempt_logger import AttemptLogger, ExecutorAttempt, RoutingTrace
 from .notifications import NotificationManager
 from .circuit_breaker import CircuitBreaker
 
+MAX_ERROR_MESSAGE_LENGTH = 200
+
+
+def _truncate_error_message(msg: str) -> str:
+    """Truncate error messages to prevent code-path leakage in logs."""
+    if len(msg) > MAX_ERROR_MESSAGE_LENGTH:
+        return msg[:MAX_ERROR_MESSAGE_LENGTH] + "...[TRUNCATED]"
+    return msg
+
 
 # ---------------------------------------------------------------------------
 # Circuit breaker singleton
@@ -460,7 +469,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                         "backend": entry.backend,
                         "model_profile": entry.model_profile,
                         "error_type": result.normalized_error,
-                        "error_message": str(result.final_summary) or "",
+                        "error_message": _truncate_error_message(str(result.final_summary) or ""),
                     })
                     if fallback_from is None:
                         fallback_from = entry.tool
@@ -479,7 +488,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                             "backend": entry.backend,
                             "model_profile": entry.model_profile,
                             "error_type": result.normalized_error,
-                            "error_message": str(result.final_summary) or "",
+                            "error_message": _truncate_error_message(str(result.final_summary) or ""),
                         })
                     break
             except ExecutorError as e:
@@ -509,7 +518,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                         "backend": entry.backend,
                         "model_profile": entry.model_profile,
                         "error_type": e.error_type,
-                        "error_message": str(e),
+                        "error_message": _truncate_error_message(str(e)),
                     })
                     break
                 error_history.append({
@@ -517,7 +526,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                     "backend": entry.backend,
                     "model_profile": entry.model_profile,
                     "error_type": e.error_type,
-                    "error_message": str(e),
+                    "error_message": _truncate_error_message(str(e)),
                 })
                 if fallback_from is None:
                     fallback_from = entry.tool
