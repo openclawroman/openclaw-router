@@ -123,6 +123,7 @@ class RouteDecision:
     chain_timed_out: bool = False
     fallback_count: int = 0
     trace_id: str = ""
+    error_history: List[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -144,3 +145,4 @@ class ExecutorResult:
     final_summary: Optional[str] = None
     trace_id: str = ""
     rate_limit_info: Optional[dict] = None  # Serialized RateLimitInfo
+    error_history: List[dict] = field(default_factory=list)
