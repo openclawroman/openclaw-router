@@ -160,6 +160,7 @@ def run_codex(meta: TaskMeta) -> ExecutorResult:
             success=True,
             exit_code=0,
             latency_ms=latency_ms,
+            cost_estimate_usd=0.0,
             artifacts=artifacts,
             stdout_ref=stdout_ref,
             stderr_ref=stderr_ref,
@@ -279,11 +280,13 @@ def _openrouter_request(
             latency_ms = int((time.time() - start) * 1000)
             body = response.read().decode("utf-8", errors="replace")
             resp_data = json.loads(body) if body else {}
+            cost = resp_data.get("usage", {}).get("cost") or resp_data.get("cost") or 0.0
             save_content = json.dumps({
                 "request": payload_dict,
                 "response": resp_data,
                 "latency_ms": latency_ms,
                 "request_id": request_id,
+                "cost_estimate_usd": cost,
             }, indent=2)
             filepath = _save_request_response(task_id, save_content)
             return _make_result(
@@ -295,6 +298,7 @@ def _openrouter_request(
                 exit_code=0,
                 latency_ms=latency_ms,
                 request_id=request_id,
+                cost_estimate_usd=cost,
                 artifacts=[filepath],
                 stdout_ref=filepath,
             )
@@ -381,6 +385,7 @@ def run_claude(meta: TaskMeta) -> ExecutorResult:
             success=True,
             exit_code=0,
             latency_ms=latency_ms,
+            cost_estimate_usd=0.0,
             artifacts=artifacts,
             stdout_ref=stdout_ref,
             stderr_ref=stderr_ref,
