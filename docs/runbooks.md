@@ -644,3 +644,62 @@ timeout = snapshot["reliability"]["chain_timeout_s"]
 - **Deadlock avoidance**: `get_config_snapshot()` releases its lock before calling `load_config()` (which acquires its own lock), then re-checks
 - **Immutable returns**: `load_config()` returns a `copy.deepcopy()` of the raw config — mutations to the returned dict don't affect the global snapshot
 - **Deep immutability**: `_freeze()` recursively converts all dicts to `MappingProxyType` and all lists to tuples, so no part of the snapshot can be mutated
+
+## 8. State Management
+
+### WAL/Journal
+
+State writes use an **append-only JSONL write-ahead log** at `config/codex_state_wal.jsonl`. Before writing a state file, the router appends a write intent to the WAL. After the successful atomic rename, a `committed` marker is appended.
+
+On restart, `recover_from_wal()` replays any uncommitted entries and truncates the WAL.
+
+```python
+from router.state_store import StateStore
+store = StateStore()
+# Recovery is automatic on __init__
+# Manual: recovered = store.recover_from_wal()
+```
+
+### Sticky State
+
+When state degrades (conservation or fallback), the router requires **N=3 consecutive successes** before allowing automated recovery to primary. This prevents oscillation when costs spike momentarily.
+
+```python
+from router.state_store import StateStore, CodexState
+
+store = StateStore()
+store.record_success(CodexState.OPENAI_CONSERVATION, success=True)  # Increment
+store.record_success(CodexState.OPENAI_CONSERVATION, success=False) # Reset to 0
+
+if store.can_recover_to_primary(CodexState.OPENAI_CONSERVATION):
+    # Enough consecutive successes — safe to recover
+    store.set_auto_state(CodexState.OPENAI_PRIMARY)
+```
+
+**Emergency overrides** to `OPENAI_PRIMARY` or `CLAUDE_BACKUP` always bypass sticky state.
+
+### Chain Invariants
+
+`validate_chain(state, chain)` verifies that routing chains respect state-specific rules:
+
+| State | Rule |
+|-------|------|
+| `claude_backup` | No `openai_native` entries; first entry must be `anthropic` |
+| `openrouter_fallback` | Only `openrouter` entries (no `openai_native`, no `anthropic`) |
+| `openai_primary` | All providers allowed |
+| `openai_conservation` | All providers allowed |
+
+Violations are logged as warnings in the routing trace but do not crash the router (chain builders should already produce valid chains).
+
+### State History
+
+Every state transition is recorded in `config/codex_state_history.json` (last 50 entries):
+
+```python
+store.log_state_transition(
+    from_state=CodexState.OPENAI_PRIMARY,
+    to_state=CodexState.OPENAI_CONSERVATION,
+    reason="rate_limited",
+)
+history = store.get_state_history()  # List of {from, to, reason, timestamp}
+```

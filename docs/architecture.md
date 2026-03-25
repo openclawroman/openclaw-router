@@ -240,6 +240,9 @@ These inform transitions from `openai_primary` to `openai_conservation` and beyo
 | Feature | Implementation |
 |---------|---------------|
 | Atomic writes | tempfile + os.replace + fsync |
+| WAL/Journal | Append-only JSONL before state writes, committed marker after |
+| Sticky state | N=3 consecutive successes required before automated recovery to primary |
+| Chain invariants | validate_chain() — claude_backup no openai_native, openrouter_fallback only openrouter |
 | Anti-flap | 300s minimum between transitions |
 | Emergency override | OPENAI_PRIMARY, CLAUDE_BACKUP always allowed |
 | State history | Last 50 transitions with timestamps |

@@ -1,7 +1,7 @@
 # ai-code-runner
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-534%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-870%20passing-brightgreen.svg)](#testing)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 
 **An external routing layer for OpenClaw coding tasks.** Classifies tasks, selects the right executor (Codex CLI, Claude Code, or OpenRouter), handles fallback, and logs everything.
@@ -39,10 +39,17 @@
 - **Zero external dependencies** — pure Python 3.10+ stdlib (only `pytest` for tests)
 - **JSON in, JSON out** — pipe-friendly `stdin`/`stdout` protocol
 - **Subscription-aware routing** — 4-state system that maximizes paid subscription buckets before falling back to raw API usage
-- **Structured logging** — every routing decision logged to JSONL
+- **Structured logging** — every routing decision logged to JSONL with per-executor attempt trail
 - **Trace ID correlation** — every routing decision has a unique 12-char trace ID for log correlation across fallback attempts
 - **Metrics aggregation** — built-in metrics collector for task distribution, model usage, fallback rates, and cost per provider
 - **Atomic state writes** — crash-safe state file updates with history tracking and anti-flap protection
+- **WAL/Journal** — write-ahead log for crash recovery of state changes
+- **Sticky state** — requires N consecutive successes before automated recovery from degraded state
+- **Chain invariants** — validates routing chains respect state-specific provider rules
+- **Provider weights** — composite scoring (reliability×0.4 + speed×0.2 + cost×0.2 + priority×0.2)
+- **Rate limit parsing** — extracts rate limit headers from OpenAI, Anthropic, OpenRouter responses
+- **Notifications** — state change alerts, fallback rate warnings, conservation duration alerts
+- **Provider dashboard** — `--status` CLI for real-time provider health summary
 
 ---
 
@@ -279,25 +286,37 @@ openclaw-router/
 │   ├── policy.py               # Routing policy — 4-state chain builders, model selection per lane
 │   ├── executors.py            # run_codex(), run_claude(), run_openrouter()
 │   ├── errors.py               # normalize_error(), error classes, fallback eligibility
-│   ├── state_store.py          # Persistent state store — manual/auto layers, budget signal tracking
+│   ├── state_store.py          # Persistent state store — WAL, sticky state, anti-flap
+│   ├── attempt_logger.py       # Structured routing trace with per-executor attempt trail
+│   ├── metrics.py              # Aggregated metrics (task distribution, cost, fallback rates)
+│   ├── notifications.py        # State change alerts, conservation/fallback warnings
+│   ├── rate_limits.py          # Rate limit header parsing (OpenAI/Anthropic/OpenRouter)
+│   ├── provider_weights.py     # Composite scoring for cost/reliability-aware routing
+│   ├── provider_dashboard.py   # Health summary (--status CLI)
+│   ├── circuit_breaker.py      # Per-provider circuit breaker with health states
+│   ├── health.py               # Health check endpoint, graceful shutdown
+│   ├── config_loader.py        # get_model() — config-driven model strings
+│   ├── config_validator.py     # Config validation at startup
+│   ├── environments.py         # Environment-specific config overrides
 │   ├── logger.py               # RoutingLogger — JSONL event logging
 │   ├── telemetry.py            # RouteQualityReporter — routing quality metrics
-│   ├── config_loader.py        # get_model() — config-driven model strings
 │   ├── output_format.py        # Output format validation
 │   └── flow_control.py         # Pipeline phase management
 ├── config/
 │   ├── router.config.json      # Full configuration schema
 │   ├── router.yaml             # Model configuration
 │   ├── codex_manual_state.json # Manual state override
-│   └── codex_auto_state.json   # Auto state (managed by router)
+│   ├── codex_auto_state.json   # Auto state (managed by router)
+│   ├── codex_state_wal.jsonl   # Write-ahead log for state persistence
+│   └── codex_state_history.json # State transition history
 ├── runtime/
-│   ├── claude_health.json      # Claude availability tracking
-│   └── routing.jsonl           # Append-only routing decision log
+│   ├── routing.jsonl           # Append-only routing decision log
+│   └── alerts.jsonl            # Notification alert log
 ├── docs/
 │   ├── architecture.md         # Full architecture spec
 │   └── runbooks.md             # Operational runbooks
 ├── tests/
-│   └── (14 test files, 534 tests)
+│   └── (39 test files, 870 tests)
 └── README.md                   # This file
 ```
 
@@ -328,7 +347,7 @@ pip3 install pytest
 python3 -m pytest tests/ -q
 ```
 
-Expected: `534 passed`
+Expected: `870 passed`
 
 ---
 
