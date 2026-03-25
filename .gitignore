@@ -3,7 +3,10 @@ __pycache__/
 *.pyo
 .pytest_cache/
 logs/routing.jsonl
+runtime/routing.jsonl
+runtime/claude_health.json
 config/codex_manual_state.json
+config/codex_auto_state.json
 *.egg-info/
 dist/
 build/

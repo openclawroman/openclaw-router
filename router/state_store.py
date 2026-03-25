@@ -8,57 +8,121 @@ from .models import CodexState
 from .errors import StateError, ConfigurationError
 
 
-DEFAULT_STATE_PATH = Path(__file__).parent.parent / "config" / "codex_manual_state.json"
+CONFIG_DIR = Path(__file__).parent.parent / "config"
+MANUAL_STATE_PATH = CONFIG_DIR / "codex_manual_state.json"
+AUTO_STATE_PATH = CONFIG_DIR / "codex_auto_state.json"
 
 
 class StateStore:
-    """Read/write persistent Codex state."""
+    """Read/write persistent Codex state with manual and auto layers."""
 
-    def __init__(self, state_path: Optional[Path] = None):
-        self.state_path = state_path or DEFAULT_STATE_PATH
-        self._ensure_state_file()
+    def __init__(
+        self,
+        manual_path: Optional[Path] = None,
+        auto_path: Optional[Path] = None,
+    ):
+        self.manual_path = manual_path or MANUAL_STATE_PATH
+        self.auto_path = auto_path or AUTO_STATE_PATH
+        self._ensure_state_files()
 
-    def _ensure_state_file(self):
-        """Create default state file if it doesn't exist."""
-        if not self.state_path.exists():
-            self.state_path.parent.mkdir(parents=True, exist_ok=True)
-            self._write_default()
+    def _ensure_state_files(self):
+        """Create default state files if they don't exist."""
+        self.manual_path.parent.mkdir(parents=True, exist_ok=True)
+        self.auto_path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.manual_path.exists():
+            self._write_default(self.manual_path, CodexState.NORMAL)
+        if not self.auto_path.exists():
+            self._write_default(self.auto_path, CodexState.NORMAL)
 
-    def _write_default(self):
-        """Write default state."""
-        default = {"state": CodexState.INCLUDED_FIRST.value}
-        self._write(default)
-
-    def _read(self) -> dict:
-        """Read state file."""
+    def _write_default(self, path: Path, state: CodexState):
+        """Write default state to a file."""
+        data = {"state": state.value}
         try:
-            with open(self.state_path, "r") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
-            raise StateError(f"Failed to read state: {e}")
-
-    def _write(self, data: dict):
-        """Write state file."""
-        try:
-            with open(self.state_path, "w") as f:
+            with open(path, "w") as f:
                 json.dump(data, f, indent=2)
         except IOError as e:
-            raise StateError(f"Failed to write state: {e}")
+            raise StateError(f"Failed to write state file {path}: {e}")
+
+    def _read(self, path: Path) -> dict:
+        """Read a state file."""
+        try:
+            with open(path, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            raise StateError(f"Failed to read state file {path}: {e}")
+
+    def _write(self, path: Path, data: dict):
+        """Write a state file."""
+        try:
+            with open(path, "w") as f:
+                json.dump(data, f, indent=2)
+        except IOError as e:
+            raise StateError(f"Failed to write state file {path}: {e}")
+
+    # -------------------------------------------------------------------------
+    # Manual state (user-overridden, takes precedence)
+    # -------------------------------------------------------------------------
+
+    def get_manual_state(self) -> Optional[CodexState]:
+        """Get the manually-set Codex state. Returns None if manual is not active."""
+        data = self._read(self.manual_path)
+        raw = data.get("state")
+        if raw is None or raw == "null":
+            return None
+        try:
+            return CodexState(raw)
+        except ValueError:
+            return None
+
+    def set_manual_state(self, state: Optional[CodexState]):
+        """Set the manual override state. Pass None to clear."""
+        if state is None:
+            data = {"state": None}
+        else:
+            data = {"state": state.value}
+        self._write(self.manual_path, data)
+
+    # -------------------------------------------------------------------------
+    # Auto state (computed, lower precedence than manual)
+    # -------------------------------------------------------------------------
+
+    def get_auto_state(self) -> Optional[CodexState]:
+        """Get the auto-computed Codex state. Returns None if not set."""
+        data = self._read(self.auto_path)
+        raw = data.get("state")
+        if raw is None:
+            return None
+        try:
+            return CodexState(raw)
+        except ValueError:
+            return None
+
+    def set_auto_state(self, state: CodexState):
+        """Set the auto-computed state."""
+        data = {"state": state.value}
+        self._write(self.auto_path, data)
+
+    # -------------------------------------------------------------------------
+    # Convenience helpers
+    # -------------------------------------------------------------------------
 
     def get_state(self) -> CodexState:
-        """Get current Codex state."""
-        data = self._read()
-        state_str = data.get("state", CodexState.INCLUDED_FIRST.value)
-        try:
-            return CodexState(state_str)
-        except ValueError:
-            return CodexState.INCLUDED_FIRST
+        """Get effective state (manual > auto > default normal)."""
+        manual = self.get_manual_state()
+        if manual is not None:
+            return manual
+        auto = self.get_auto_state()
+        if auto is not None:
+            return auto
+        return CodexState.NORMAL
 
     def set_state(self, state: CodexState):
-        """Set Codex state."""
-        data = {"state": state.value}
-        self._write(data)
+        """Set state (writes to manual for backward compat)."""
+        self.set_manual_state(state)
 
-    def get_state_path(self) -> Path:
-        """Return the state file path."""
-        return self.state_path
+    def get_paths(self) -> dict:
+        """Return paths for both state files."""
+        return {
+            "manual": str(self.manual_path),
+            "auto": str(self.auto_path),
+        }

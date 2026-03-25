@@ -1,5 +1,8 @@
 """Normalized error classes for executor results."""
 
+import re
+from typing import Optional
+
 
 class RouterError(Exception):
     """Base exception for router errors."""
@@ -56,3 +59,57 @@ class ConfigurationError(RouterError):
 class StateError(RouterError):
     """State file read/write error."""
     pass
+
+
+# Normalized error types used across the router
+NORMALIZED_ERROR_TYPES = [
+    "quota_exhausted",
+    "auth_error",
+    "provider_timeout",
+    "provider_unavailable",
+    "transient_network_error",
+    "rate_limited",
+]
+
+
+def normalize_error(error_message: str) -> str:
+    """
+    Map a provider error message/string to a normalized error type.
+
+    Mapping rules:
+      - "quota", "limit"         -> "quota_exhausted"
+      - "rate", "429"            -> "rate_limited"
+      - "auth", "unauthorized", "401" -> "auth_error"
+      - "timeout", "timed out"   -> "provider_timeout"
+      - "unavailable", "503", "connection" -> "provider_unavailable"
+      - "network", "connection"  -> "transient_network_error"
+
+    Returns one of NORMALIZED_ERROR_TYPES or "unknown_error".
+    """
+    msg = error_message.lower()
+
+    # quota / limit -> quota_exhausted
+    if "quota" in msg or "limit" in msg:
+        return "quota_exhausted"
+
+    # rate / 429 -> rate_limited
+    if "rate" in msg or "429" in msg:
+        return "rate_limited"
+
+    # auth / unauthorized / 401 -> auth_error
+    if "auth" in msg or "unauthorized" in msg or "401" in msg:
+        return "auth_error"
+
+    # timeout / timed out -> provider_timeout
+    if "timeout" in msg or "timed out" in msg:
+        return "provider_timeout"
+
+    # unavailable / 503 / connection -> provider_unavailable
+    if "unavailable" in msg or "503" in msg or ("connection" in msg and "refused" not in msg):
+        return "provider_unavailable"
+
+    # network / connection (refused) -> transient_network_error
+    if "network" in msg or "connection" in msg:
+        return "transient_network_error"
+
+    return "unknown_error"
