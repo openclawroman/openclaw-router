@@ -127,6 +127,14 @@ class StateError(RouterError):
     pass
 
 
+class ChainInvariantViolation(RouterError):
+    """Routing chain violates state-specific invariants."""
+    def __init__(self, state: str, reason: str):
+        self.state = state
+        self.reason = reason
+        super().__init__(f"Chain invariant violation [{state}]: {reason}")
+
+
 # ── Normalized error type sets ───────────────────────────────────────────────
 
 ELIGIBLE_FALLBACK_ERRORS = {

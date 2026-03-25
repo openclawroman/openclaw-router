@@ -37,6 +37,8 @@ class RoutingTrace:
     final_tool: str = ""
     final_success: bool = False
     final_error: Optional[str] = None
+    chain_invariant_violated: bool = False
+    chain_invariant_reason: Optional[str] = None
     timestamp: str = ""
 
     def to_dict(self) -> dict:

@@ -14,7 +14,7 @@ from .models import (
 )
 from .state_store import StateStore
 from .executors import run_codex, run_claude, run_openrouter
-from .errors import ExecutorError, ELIGIBLE_FALLBACK_ERRORS, can_fallback
+from .errors import ExecutorError, ELIGIBLE_FALLBACK_ERRORS, can_fallback, ChainInvariantViolation
 from .config_loader import get_model, get_reliability_config
 from .attempt_logger import AttemptLogger, ExecutorAttempt, RoutingTrace
 from .notifications import NotificationManager
@@ -237,6 +237,39 @@ def build_chain(task: TaskMeta, state: CodexState) -> List[ChainEntry]:
 
 
 # ---------------------------------------------------------------------------
+# Chain invariant validation
+# ---------------------------------------------------------------------------
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def validate_chain(state: CodexState, chain: List[ChainEntry]) -> Tuple[bool, str]:
+    """
+    Validate that a routing chain respects state-specific invariants.
+
+    Returns (valid, reason) where reason explains any violation.
+    """
+    state_val = state.value if hasattr(state, "value") else str(state)
+
+    if state == CodexState.CLAUDE_BACKUP:
+        for entry in chain:
+            if entry.backend == "openai_native":
+                return False, f"claude_backup chain must not contain openai_native entries (found: {entry.tool}:{entry.backend})"
+        if chain and chain[0].backend not in ("anthropic",):
+            return False, f"claude_backup chain must start with anthropic backend (got: {chain[0].backend})"
+
+    elif state == CodexState.OPENROUTER_FALLBACK:
+        for entry in chain:
+            if entry.backend in ("openai_native", "anthropic"):
+                return False, f"openrouter_fallback chain must only contain openrouter entries (found: {entry.backend})"
+
+    # openai_primary and openai_conservation: all providers allowed
+    return True, "valid"
+
+
+# ---------------------------------------------------------------------------
 # Executor dispatch
 # ---------------------------------------------------------------------------
 
@@ -305,6 +338,12 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
 
     state = resolve_state()
     chain = build_chain(task, state)
+
+    # Validate chain invariants
+    valid, invariant_reason = validate_chain(state, chain)
+    if not valid:
+        logger.warning("Chain invariant violation for state %s: %s", state.value, invariant_reason)
+
     trace_id = uuid.uuid4().hex[:12]  # 12-char hex trace ID
     reliability = get_reliability_config()
     chain_timeout_s = reliability.get("chain_timeout_s", 600)
@@ -464,6 +503,8 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
             final_tool=result.tool if result else "none",
             final_success=result.success if result else False,
             final_error=result.normalized_error if result and not result.success else None,
+            chain_invariant_violated=not valid,
+            chain_invariant_reason=invariant_reason if not valid else None,
         )
         attempt_logger.log_trace(trace)
 
