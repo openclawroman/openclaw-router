@@ -77,6 +77,11 @@ class StateStore:
         self.history_path = Path(history_path) if history_path else self.manual_path.parent / "codex_state_history.json"
         self.wal_path = Path(wal_path) if wal_path else WAL_PATH
         self._success_counter: dict[str, int] = {}  # state value -> consecutive success count
+        # In-memory state cache
+        self._cached_manual_state: Optional[CodexState] = None
+        self._cached_auto_state: Optional[CodexState] = None
+        self._manual_cache_valid: bool = False
+        self._auto_cache_valid: bool = False
         self.recover_from_wal()
         self._ensure_state_files()
 
@@ -239,15 +244,28 @@ class StateStore:
     # -------------------------------------------------------------------------
 
     def get_manual_state(self) -> Optional[CodexState]:
-        """Get the manually-set Codex state. Returns None if manual is not active or file missing."""
+    def get_manual_state(self) -> Optional[CodexState]:
+        """Get the manually-set Codex state. Returns None if manual is not active or file missing.
+
+        Uses in-memory cache to avoid repeated file reads.
+        """
         with self._lock:
+            if self._manual_cache_valid:
+                return self._cached_manual_state
             data = self._read(self.manual_path)
             if data is None:
+                self._cached_manual_state = None
+                self._manual_cache_valid = True
                 return None
             raw = data.get("state")
             if raw is None or raw == "null":
+                self._cached_manual_state = None
+                self._manual_cache_valid = True
                 return None
-            return self._validate_state(raw)
+            result = self._validate_state(raw)
+            self._cached_manual_state = result
+            self._manual_cache_valid = True
+            return result
 
     def set_manual_state(self, state: Optional[CodexState]):
         """Set the manual override state. Pass None to clear."""
@@ -257,27 +275,44 @@ class StateStore:
             else:
                 data = {"state": state.value}
             self._write(self.manual_path, data)
+            self._cached_manual_state = state
+            self._manual_cache_valid = True
 
     # -------------------------------------------------------------------------
     # Auto state (computed, lower precedence than manual)
     # -------------------------------------------------------------------------
 
     def get_auto_state(self) -> Optional[CodexState]:
-        """Get the auto-computed Codex state. Returns None if not set or file missing."""
+    def get_auto_state(self) -> Optional[CodexState]:
+        """Get the auto-computed Codex state. Returns None if not set or file missing.
+
+        Uses in-memory cache to avoid repeated file reads.
+        """
         with self._lock:
+            if self._auto_cache_valid:
+                return self._cached_auto_state
             data = self._read(self.auto_path)
             if data is None:
+                self._cached_auto_state = None
+                self._auto_cache_valid = True
                 return None
             raw = data.get("state")
             if raw is None:
+                self._cached_auto_state = None
+                self._auto_cache_valid = True
                 return None
-            return self._validate_state(raw)
+            result = self._validate_state(raw)
+            self._cached_auto_state = result
+            self._auto_cache_valid = True
+            return result
 
     def set_auto_state(self, state: CodexState):
         """Set the auto-computed state."""
         with self._lock:
             data = {"state": state.value}
             self._write(self.auto_path, data)
+            self._cached_auto_state = state
+            self._auto_cache_valid = True
 
     # -------------------------------------------------------------------------
     # Convenience helpers
@@ -465,3 +500,30 @@ class StateStore:
             return True
         allowed = VALID_STATE_TRANSITIONS.get(from_state, set())
         return to_state in allowed
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton
+# ---------------------------------------------------------------------------
+
+_global_store: Optional[StateStore] = None
+_global_store_lock = threading.Lock()
+
+
+def get_state_store() -> StateStore:
+    """Get or create the global StateStore singleton.
+
+    Uses double-checked locking to ensure thread-safe lazy initialization.
+    """
+    global _global_store
+    if _global_store is None:
+        with _global_store_lock:
+            if _global_store is None:
+                _global_store = StateStore()
+    return _global_store
+
+
+def reset_state_store() -> None:
+    """Reset the global StateStore singleton. Primarily for testing."""
+    global _global_store
+    _global_store = None

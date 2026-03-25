@@ -104,29 +104,29 @@ class TestResolveStatePriority:
 
     def test_default_returns_openai_primary(self, tmp_path):
         from unittest.mock import patch, MagicMock
-        with patch("router.policy.StateStore") as MockStore:
+        with patch("router.policy.get_state_store") as MockGetStore:
             mock = MagicMock()
             mock.get_manual_state.return_value = None
             mock.get_auto_state.return_value = None
-            MockStore.return_value = mock
+            MockGetStore.return_value = mock
             assert resolve_state() == CodexState.OPENAI_PRIMARY
 
     def test_manual_conservation_overrides_all(self, tmp_path):
         from unittest.mock import patch, MagicMock
-        with patch("router.policy.StateStore") as MockStore:
+        with patch("router.policy.get_state_store") as MockGetStore:
             mock = MagicMock()
             mock.get_manual_state.return_value = CodexState.OPENAI_CONSERVATION
             mock.get_auto_state.return_value = CodexState.OPENROUTER_FALLBACK
-            MockStore.return_value = mock
+            MockGetStore.return_value = mock
             assert resolve_state() == CodexState.OPENAI_CONSERVATION
 
     def test_auto_claude_used_when_no_manual(self, tmp_path):
         from unittest.mock import patch, MagicMock
-        with patch("router.policy.StateStore") as MockStore:
+        with patch("router.policy.get_state_store") as MockGetStore:
             mock = MagicMock()
             mock.get_manual_state.return_value = None
             mock.get_auto_state.return_value = CodexState.CLAUDE_BACKUP
-            MockStore.return_value = mock
+            MockGetStore.return_value = mock
             assert resolve_state() == CodexState.CLAUDE_BACKUP
 
     def test_explicit_store_override(self, tmp_path):

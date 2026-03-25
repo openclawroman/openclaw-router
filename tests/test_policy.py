@@ -30,38 +30,38 @@ class TestResolveState:
         """Returns 'normal' when no state files exist."""
         manual = tmp_path / "manual.json"
         auto = tmp_path / "auto.json"
-        with patch("router.policy.StateStore") as MockStore:
+        with patch("router.policy.get_state_store") as MockGetStore:
             store = MagicMock()
             store.get_manual_state.return_value = None
             store.get_auto_state.return_value = None
-            MockStore.return_value = store
+            MockGetStore.return_value = store
             assert resolve_state() == CodexState.NORMAL
 
     def test_manual_override(self, tmp_path):
         """Manual state takes precedence over auto."""
-        with patch("router.policy.StateStore") as MockStore:
+        with patch("router.policy.get_state_store") as MockGetStore:
             store = MagicMock()
             store.get_manual_state.return_value = CodexState.LAST10
             store.get_auto_state.return_value = CodexState.NORMAL
-            MockStore.return_value = store
+            MockGetStore.return_value = store
             assert resolve_state() == CodexState.LAST10
 
     def test_auto_fallback(self, tmp_path):
         """Auto state used when manual missing."""
-        with patch("router.policy.StateStore") as MockStore:
+        with patch("router.policy.get_state_store") as MockGetStore:
             store = MagicMock()
             store.get_manual_state.return_value = None
             store.get_auto_state.return_value = CodexState.LAST10
-            MockStore.return_value = store
+            MockGetStore.return_value = store
             assert resolve_state() == CodexState.LAST10
 
     def test_manual_clear_falls_to_auto(self, tmp_path):
         """Clear manual state, auto takes over."""
-        with patch("router.policy.StateStore") as MockStore:
+        with patch("router.policy.get_state_store") as MockGetStore:
             store = MagicMock()
             store.get_manual_state.return_value = None
             store.get_auto_state.return_value = CodexState.LAST10
-            MockStore.return_value = store
+            MockGetStore.return_value = store
             assert resolve_state() == CodexState.LAST10
 
 
