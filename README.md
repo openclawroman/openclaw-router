@@ -2,6 +2,7 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Tests](https://img.shields.io/badge/tests-1784%20passing-brightgreen.svg)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-95.73%25-brightgreen.svg)](#testing)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 
 **An external routing layer for OpenClaw coding tasks.** Classifies tasks, selects the right executor (Codex CLI, Claude Code, or OpenRouter), handles fallback, and logs everything.
@@ -25,6 +26,9 @@
 - [Getting Started](#getting-started)
 - [Usage](#usage)
 - [Testing](#testing)
+- [Benchmark](#benchmark)
+- [Security & Privacy](#security--privacy)
+- [Lifecycle & Maintenance](#lifecycle--maintenance)
 - [Monitoring](#monitoring)
 - [Documentation](#documentation)
 
@@ -50,6 +54,10 @@
 - **Rate limit parsing** — extracts rate limit headers from OpenAI, Anthropic, OpenRouter responses
 - **Notifications** — state change alerts, fallback rate warnings, conservation duration alerts
 - **Provider dashboard** — `--status` CLI for real-time provider health summary
+- **Audit chain** — tamper-evident SHA-256 chain of routing decisions for full traceability
+- **Secret redaction** — automatic detection and masking of API keys, tokens, and credentials in logs
+- **Content isolation** — task content isolated from cross-task contamination
+- **File permissions** — state files written with restrictive `0o600` permissions
 
 ---
 
@@ -251,6 +259,12 @@ These stop execution — no fallback is attempted:
 | `toolchain_error` | Missing compiler, linter, or toolchain |
 | `template_render_error` | Code template rendering failure |
 | `unsupported_task` | Task type not supported by executor |
+| `context_too_long` | Input exceeds context window limits |
+| `content_filtered` | Content blocked by provider safety/policy filter |
+
+### ⚠️ Partial Success
+
+When an executor produces useful output before failing (e.g., it wrote files but exited non-zero), the result is marked `partial_success=True`. In this case the chain **stops immediately** — no fallback is attempted — and the partial result is returned to the caller.
 
 ---
 
@@ -297,11 +311,17 @@ openclaw-router/
 │   ├── health.py               # Health check endpoint, graceful shutdown
 │   ├── config_loader.py        # get_model() — config-driven model strings
 │   ├── config_validator.py     # Config validation at startup
+│   ├── config_migration.py     # Config schema migration between versions
 │   ├── environments.py         # Environment-specific config overrides
 │   ├── logger.py               # RoutingLogger — JSONL event logging
 │   ├── telemetry.py            # RouteQualityReporter — routing quality metrics
 │   ├── output_format.py        # Output format validation
-│   └── flow_control.py         # Pipeline phase management
+│   ├── flow_control.py         # Pipeline phase management
+│   ├── audit.py                # Tamper-evident SHA-256 audit chain
+│   ├── sanitize.py             # Input/output sanitization
+│   ├── secrets.py              # Secret detection and redaction
+│   ├── model_registry.py       # Model versioning registry
+│   └── benchmark.py            # Routing latency benchmark harness
 ├── config/
 │   ├── router.config.json      # Full configuration schema
 │   ├── router.yaml             # Model configuration
@@ -389,6 +409,40 @@ pytest tests/ -q
 # Specific test file
 pytest tests/test_classifier.py -v
 ```
+
+---
+
+## Benchmark
+
+The router ships with a built-in latency benchmark harness (`router/benchmark.py`) that measures end-to-end routing overhead.
+
+```bash
+# Run benchmark tests
+pytest tests/test_routing_benchmark.py -v
+
+# Direct benchmark invocation
+python3 -m router.benchmark
+```
+
+The benchmark exercises classifier throughput, policy evaluation speed, state store read/write latency, and full pipeline round-trip time. Results are emitted as structured JSON suitable for CI regression tracking.
+
+---
+
+## Security & Privacy
+
+`ai-code-runner` implements defense-in-depth for sensitive data:
+
+- **Secret redaction** — API keys, tokens, and credentials are automatically detected and masked in all log output before they reach the filesystem. See `router/secrets.py`.
+- **Content isolation** — task content is isolated per-execution; no cross-task contamination between routing decisions.
+- **File permissions** — all state files (`codex_auto_state.json`, WAL, history) are written with `0o600` permissions (owner read/write only).
+- **Audit chain integrity** — every routing decision is appended to a tamper-evident SHA-256 chain (`router/audit.py`). Any modification to a historical entry invalidates the entire chain.
+
+---
+
+## Lifecycle & Maintenance
+
+- **Model versioning** — the model registry (`router/model_registry.py`) tracks available model versions, allowing safe deprecation and promotion without code changes.
+- **Config migration** — `router/config_migration.py` handles schema upgrades when config formats evolve between releases. Existing configs are automatically migrated at startup.
 
 ---
 
