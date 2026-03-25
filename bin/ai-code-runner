@@ -45,6 +45,7 @@ Output (stdout JSON - ExecutorResult):
 }
 """
 
+import os
 import sys
 import json
 import time
@@ -52,6 +53,18 @@ from pathlib import Path
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Parse config-related flags before other logic
+config_path = None
+for i, arg in enumerate(sys.argv):
+    if arg == "--config" and i + 1 < len(sys.argv):
+        config_path = sys.argv[i + 1]
+    elif arg == "--env" and i + 1 < len(sys.argv):
+        os.environ["ROUTER_ENV"] = sys.argv[i + 1]
+
+if config_path:
+    from router.config_loader import reload_config
+    reload_config(config_path)
 
 # Health check mode
 if "--health" in sys.argv:

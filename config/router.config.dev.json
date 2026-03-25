@@ -1,0 +1,16 @@
+{
+  "_extends": "router.config.json",
+  "_comment": "Development overrides — inherits base config and patches specific keys",
+  "reliability": {
+    "chain_timeout_s": 300,
+    "max_fallbacks": 2,
+    "circuit_breaker": {
+      "threshold": 3,
+      "window_s": 30,
+      "cooldown_s": 30
+    }
+  },
+  "logging": {
+    "jsonl_path": "runtime/routing.dev.jsonl"
+  }
+}
