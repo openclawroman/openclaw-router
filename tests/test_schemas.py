@@ -332,6 +332,12 @@ class TestImports(unittest.TestCase):
             "normalize_error", "NORMALIZED_ERROR_TYPES",
             "run_codex", "run_claude", "run_openrouter",
             "run_codex_openrouter_minimax", "run_codex_openrouter_kimi",
+            "OutputFormat", "FormatValidationError",
+            "parse_output_format", "validate_format_for_task",
+            "get_default_format", "resolve_output_format",
+            "PipelinePhase", "PhaseConfig", "FlowConfig",
+            "PhaseResult", "PipelineResult",
+            "requires_three_phase", "select_flow",
         }
         actual = set(router.__all__)
         self.assertEqual(actual, expected,
