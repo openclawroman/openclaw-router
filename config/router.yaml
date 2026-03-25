@@ -3,7 +3,7 @@ default_state: included_first
 models:
   openrouter:
     large_context: moonshotai/kimi-k2.5
-    cheap_support: minimax/minimax-m2.5
+    cheap_support: minimax/minimax-m2.7
 
 routing:
   coder:
