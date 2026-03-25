@@ -1,12 +1,18 @@
 """State change notifications and alerting rules."""
 
 import json
+import logging
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field, asdict
 from enum import Enum
+
+logger = logging.getLogger(__name__)
+
+RESTRICTIVE_PERMISSIONS = 0o600  # Owner read/write only
 
 
 class AlertSeverity(str, Enum):
@@ -165,4 +171,12 @@ class NotificationManager:
         entry = alert.to_dict()
         with open(self.alerts_path, "a") as f:
             f.write(json.dumps(entry) + "\n")
+        self._restrict_permissions()
         print(f"[{alert.severity.upper()}] {alert.message}", file=sys.stderr)
+
+    def _restrict_permissions(self) -> None:
+        """Best-effort: set alert file permissions to owner-only read/write."""
+        try:
+            os.chmod(self.alerts_path, RESTRICTIVE_PERMISSIONS)
+        except OSError:
+            logger.warning("Failed to set restrictive permissions on %s (may not be supported)", self.alerts_path)
