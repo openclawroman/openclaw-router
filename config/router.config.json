@@ -1,80 +1,60 @@
 {
-  "$schema": "https://openclaw.local/schemas/router-config-v2.json",
-  "version": "2.0",
-  "description": "OpenClaw Router configuration schema v2",
-
-  "states": {
-    "normal": {
-      "description": "Standard routing state — use full executor chain",
-      "chain": [
-        {
-          "executor": "codex_cli",
-          "backend": "openai_native",
-          "model_profile": "codex_primary"
+  "version": 1,
+  "state": {
+    "default": "normal",
+    "manual_state_file": "config/codex_manual_state.json",
+    "auto_state_file": "config/codex_auto_state.json",
+    "claude_health_file": "runtime/claude_health.json"
+  },
+  "openclaw": {
+    "delegate_all_coding_tasks": true,
+    "delegate_mode": "blocking",
+    "runner_command": ["python3", "ai_code_runner.py"]
+  },
+  "tools": {
+    "codex_cli": {
+      "profiles": {
+        "openai_native": {
+          "model": "o3",
+          "timeout_s": 300
         },
-        {
-          "executor": "claude_code",
-          "backend": "anthropic",
-          "model_profile": "claude_primary"
-        },
-        {
-          "executor": "codex_cli",
-          "backend": "openrouter",
-          "model_profile": "codex_primary"
+        "openrouter": {
+          "base_url": "https://openrouter.ai/api/v1",
+          "timeout_s": 300
         }
+      }
+    },
+    "claude_code": {
+      "provider": "anthropic",
+      "timeout_s": 300
+    }
+  },
+  "routing": {
+    "normal": {
+      "chain": [
+        { "tool": "codex_cli", "backend": "openai_native", "model_profile": "codex_primary" },
+        { "tool": "claude_code", "backend": "anthropic", "model_profile": "claude_primary" },
+        { "tool": "codex_cli", "backend": "openrouter", "model_profile": "openrouter_dynamic" }
       ]
     },
     "last10": {
-      "description": "Reserve OpenAI quota — use Claude primary, OpenRouter as fallback",
       "chain": [
-        {
-          "executor": "claude_code",
-          "backend": "anthropic",
-          "model_profile": "claude_primary"
-        },
-        {
-          "executor": "codex_cli",
-          "backend": "openrouter",
-          "model_profile": "openrouter_dynamic"
-        }
+        { "tool": "claude_code", "backend": "anthropic", "model_profile": "claude_primary" },
+        { "tool": "codex_cli", "backend": "openrouter", "model_profile": "openrouter_dynamic" }
       ]
     }
   },
-
-  "openrouter": {
-    "profiles": {
-      "openrouter_minimax": {
-        "model": "minimax/minimax-m2.5",
-        "description": "Default cheap/fast model for routine coding tasks"
-      },
-      "openrouter_kimi": {
-        "model": "moonshotai/kimi-k2.5",
-        "description": "Large-context model for complex or multimodal tasks"
-      }
-    },
-    "use_kimi_for": [
-      "ui_from_screenshot",
-      "multimodal_code_task",
-      "swarm_code_task"
-    ]
-  },
-
-  "executors": {
-    "codex_cli": {
-      "command": "codex",
-      "backend": "openai_native",
-      "available": true,
-      "timeout_seconds": 300
-    },
-    "claude_code": {
-      "command": "claude",
-      "backend": "anthropic",
-      "available_check": "command -v claude",
-      "timeout_seconds": 300
+  "openrouter_dynamic_rules": {
+    "default_model": "minimax",
+    "specialist_rules": {
+      "ui_from_screenshot": "kimi",
+      "multimodal_code_task": "kimi",
+      "swarm_code_task": "kimi",
+      "has_screenshots": "kimi"
     }
   },
-
-  "fallback": {
+  "retry": {
+    "max_retries": 2,
     "eligible_errors": [
       "auth_error",
       "rate_limited",
@@ -84,77 +64,7 @@
       "transient_network_error"
     ]
   },
-
-  "state_files": {
-    "manual": "config/codex_manual_state.json",
-    "auto": "config/codex_auto_state.json"
-  },
-
-  "runtime": {
-    "routing_log": "runtime/routing.jsonl",
-    "artifacts_dir": "runtime/artifacts"
-  },
-
-  "task_class_defaults": {
-    "implementation": {
-      "modality": "text",
-      "requires_multimodal": false,
-      "has_screenshots": false,
-      "swarm": false
-    },
-    "refactor": {
-      "modality": "text",
-      "requires_multimodal": false,
-      "has_screenshots": false,
-      "swarm": false
-    },
-    "bugfix": {
-      "modality": "text",
-      "requires_multimodal": false,
-      "has_screenshots": false,
-      "swarm": false
-    },
-    "debug": {
-      "modality": "text",
-      "requires_multimodal": false,
-      "has_screenshots": false,
-      "swarm": false
-    },
-    "code_review": {
-      "modality": "text",
-      "requires_multimodal": false,
-      "has_screenshots": false,
-      "swarm": false
-    },
-    "test_generation": {
-      "modality": "text",
-      "requires_multimodal": false,
-      "has_screenshots": false,
-      "swarm": false
-    },
-    "repo_architecture_change": {
-      "modality": "text",
-      "requires_multimodal": false,
-      "has_screenshots": false,
-      "swarm": false
-    },
-    "ui_from_screenshot": {
-      "modality": "image",
-      "requires_multimodal": true,
-      "has_screenshots": true,
-      "swarm": false
-    },
-    "multimodal_code_task": {
-      "modality": "mixed",
-      "requires_multimodal": true,
-      "has_screenshots": false,
-      "swarm": false
-    },
-    "swarm_code_task": {
-      "modality": "mixed",
-      "requires_multimodal": false,
-      "has_screenshots": false,
-      "swarm": true
-    }
+  "logging": {
+    "jsonl_path": "runtime/routing.jsonl"
   }
 }

@@ -7,41 +7,41 @@ Usage:
 
 Input (stdin JSON):
 {
-    "task_id": "task_abc123",
-    "agent": "coder",
-    "task_class": "implementation",
-    "task_brief": "Implement token refresh flow",
-    "repo_path": "/path/to/repo",
-    "branch": "feature/auth",
-    "risk": "medium",
-    "criticality": "normal",
-    "context_size": "medium",
-    "modality": "text",
-    "requires_multimodal": false,
-    "has_screenshots": false,
-    "swarm": false,
-    "cwd": "/path/to/repo"
+    "task_meta": {
+        "task_id": "task_abc123",
+        "agent": "coder",
+        "task_class": "implementation",
+        "risk": "medium",
+        "modality": "text",
+        "requires_repo_write": false,
+        "requires_multimodal": false,
+        "has_screenshots": false,
+        "swarm": false,
+        "repo_path": "/path/to/repo",
+        "cwd": "/path/to/repo",
+        "summary": "Implement token refresh flow"
+    },
+    "prompt": "Implement token refresh flow...",
+    "attachments": [],
+    "context": {"branch": "feature/auth", "target_files": ["src/auth.py"]}
 }
 
-Output (stdout JSON):
+Output (stdout JSON - ExecutorResult):
 {
     "task_id": "task_abc123",
-    "executor": "codex_cli",
+    "tool": "codex_cli",
     "backend": "openai_native",
     "model_profile": "codex_primary",
-    "chain": ["codex_cli", "claude_code", "openrouter"],
-    "reason": "normal: standard chain",
-    "attempted_fallback": false,
-    "status": "success",
-    "error_type": null,
+    "success": true,
     "normalized_error": null,
-    "exit_code": null,
+    "exit_code": 0,
+    "latency_ms": 1234,
     "request_id": null,
     "cost_estimate_usd": null,
     "artifacts": [],
     "stdout_ref": null,
     "stderr_ref": null,
-    "final_summary": null
+    "final_summary": "Token refresh flow implemented"
 }
 """
 
@@ -54,66 +54,48 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from router import (
-    TaskMeta, TaskClass, TaskRisk, TaskCriticality, TaskModality,
+    TaskMeta, TaskClass, TaskRisk, TaskModality,
     route_task, RoutingLogger, RouterError
 )
 
 
-def parse_task(data: dict) -> TaskMeta:
-    """Parse input JSON into TaskMeta."""
+def parse_task_meta(data: dict) -> TaskMeta:
+    """Parse task_meta dict into TaskMeta."""
+    meta = data.get("task_meta", data)
     return TaskMeta(
-        task_id=str(data.get("task_id", "")),
-        agent=data.get("agent", "coder"),
-        task_class=TaskClass(data.get("task_class", "implementation")),
-        task_brief=data.get("task_brief", ""),
-        repo_path=data.get("repo_path", ""),
-        branch=data.get("branch", "main"),
-        risk=TaskRisk(data.get("risk", "medium")),
-        criticality=TaskCriticality(data.get("criticality", "normal")),
-        context_size=data.get("context_size", "medium"),
-        modality=TaskModality(data.get("modality", "text")),
-        requires_multimodal=bool(data.get("requires_multimodal", False)),
-        has_screenshots=bool(data.get("has_screenshots", False)),
-        swarm=bool(data.get("swarm", False)),
-        cwd=data.get("cwd", ""),
+        task_id=str(meta.get("task_id", "")),
+        agent=meta.get("agent", "coder"),
+        task_class=TaskClass(meta.get("task_class", "implementation")),
+        risk=TaskRisk(meta.get("risk", "medium")),
+        modality=TaskModality(meta.get("modality", "text")),
+        requires_repo_write=bool(meta.get("requires_repo_write", False)),
+        requires_multimodal=bool(meta.get("requires_multimodal", False)),
+        has_screenshots=bool(meta.get("has_screenshots", False)),
+        swarm=bool(meta.get("swarm", False)),
+        repo_path=meta.get("repo_path", ""),
+        cwd=meta.get("cwd", ""),
+        summary=meta.get("summary", ""),
     )
 
 
-def build_output(decision) -> dict:
-    """Build the output dict from a RouteDecision."""
-    result = {
-        "task_id": decision.task_id,
-        "executor": decision.executor.value,
-        "chain": decision.chain,
-        "reason": decision.reason,
-        "attempted_fallback": decision.attempted_fallback,
-        "status": decision.status,
-        "error_type": decision.error_type,
+def result_to_dict(result) -> dict:
+    """Convert ExecutorResult to output dict."""
+    return {
+        "task_id": result.task_id,
+        "tool": result.tool,
+        "backend": result.backend,
+        "model_profile": result.model_profile,
+        "success": result.success,
+        "normalized_error": result.normalized_error,
+        "exit_code": result.exit_code,
+        "latency_ms": result.latency_ms,
+        "request_id": result.request_id,
+        "cost_estimate_usd": result.cost_estimate_usd,
+        "artifacts": result.artifacts or [],
+        "stdout_ref": result.stdout_ref,
+        "stderr_ref": result.stderr_ref,
+        "final_summary": result.final_summary,
     }
-    # New fields
-    if decision.backend is not None:
-        result["backend"] = decision.backend.value
-    if decision.model_profile is not None:
-        result["model_profile"] = decision.model_profile.value
-    if decision.normalized_error is not None:
-        result["normalized_error"] = decision.normalized_error
-    if decision.exit_code is not None:
-        result["exit_code"] = decision.exit_code
-    if decision.request_id is not None:
-        result["request_id"] = decision.request_id
-    if decision.cost_estimate_usd is not None:
-        result["cost_estimate_usd"] = decision.cost_estimate_usd
-    result["artifacts"] = decision.artifacts or []
-    if decision.stdout_ref is not None:
-        result["stdout_ref"] = decision.stdout_ref
-    if decision.stderr_ref is not None:
-        result["stderr_ref"] = decision.stderr_ref
-    if decision.final_summary is not None:
-        result["final_summary"] = decision.final_summary
-    if decision.fallback_from is not None:
-        result["fallback_from"] = decision.fallback_from
-
-    return result
 
 
 def main():
@@ -121,20 +103,24 @@ def main():
     try:
         # Read stdin JSON
         input_data = json.load(sys.stdin)
-        task = parse_task(input_data)
+        task = parse_task_meta(input_data)
 
-        # Route the task
+        # Merge prompt into summary if not set
+        if not task.summary and "prompt" in input_data:
+            task.summary = input_data["prompt"][:500]
+
+        # Route the task (returns RouteDecision, ExecutorResult)
         start_time = time.time()
-        decision = route_task(task)
-        latency_ms = int((time.time() - start_time) * 1000)
+        decision, result = route_task(task)
+        total_latency_ms = int((time.time() - start_time) * 1000)
 
         # Log the decision
         logger = RoutingLogger()
-        logger.log(task, decision, latency_ms)
+        logger.log(task, decision, result, latency_ms=total_latency_ms)
 
-        # Output result
-        result = build_output(decision)
-        print(json.dumps(result, indent=2))
+        # Output ExecutorResult
+        output = result_to_dict(result)
+        print(json.dumps(output, indent=2))
 
     except json.JSONDecodeError as e:
         print(json.dumps({"error": f"Invalid JSON input: {e}"}), file=sys.stderr)

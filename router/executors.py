@@ -1,6 +1,6 @@
 """Executor adapters for Codex CLI, Claude Code, and OpenRouter.
 
-New spec internal tool roles:
+Spec internal tool roles:
   1. Codex CLI, OpenAI-native  -> tool=codex_cli,  backend=openai_native,  profile=codex_primary
   2. Claude Code, Anthropic    -> tool=claude_code, backend=anthropic,      profile=claude_primary
   3. Codex CLI, OpenRouter     -> tool=codex_cli,  backend=openrouter,      profile=openrouter_minimax
@@ -16,9 +16,7 @@ import urllib.error
 import json
 from typing import Optional
 
-from .models import (
-    TaskMeta, RouteDecision, Executor, ExecutorBackend, ModelProfile
-)
+from .models import TaskMeta, ExecutorResult
 from .errors import (
     CodexQuotaError, CodexAuthError, CodexToolError,
     ClaudeQuotaError, ClaudeAuthError, ClaudeToolError,
@@ -33,31 +31,38 @@ OPENROUTER_MINIMAX_MODEL = "minimax/minimax-m2.7"
 OPENROUTER_KIMI_MODEL    = "moonshotai/kimi-k2.5"
 
 
-def _make_decision(
-    executor: Executor,
-    backend: ExecutorBackend,
-    model_profile: ModelProfile,
-    model_str: str,
-    reason: str,
-    exit_code: int = 0,
+def _make_result(
+    task_id: str,
+    tool: str,
+    backend: str,
+    model_profile: str,
+    success: bool = True,
+    normalized_error: Optional[str] = None,
+    exit_code: Optional[int] = None,
+    latency_ms: int = 0,
     request_id: Optional[str] = None,
     cost_estimate_usd: Optional[float] = None,
-    normalized_error: Optional[str] = None,
-) -> RouteDecision:
-    """Construct a RouteDecision with all the new fields populated."""
-    return RouteDecision(
-        executor=executor,
+    artifacts: Optional[list] = None,
+    stdout_ref: Optional[str] = None,
+    stderr_ref: Optional[str] = None,
+    final_summary: Optional[str] = None,
+) -> ExecutorResult:
+    """Construct an ExecutorResult."""
+    return ExecutorResult(
+        task_id=task_id,
+        tool=tool,
         backend=backend,
         model_profile=model_profile,
-        model=model_str,
-        chain=[],
-        reason=reason,
-        status="success" if normalized_error is None else "error",
+        success=success,
+        normalized_error=normalized_error,
         exit_code=exit_code,
+        latency_ms=latency_ms,
         request_id=request_id,
         cost_estimate_usd=cost_estimate_usd,
-        artifacts=[],
-        normalized_error=normalized_error,
+        artifacts=artifacts or [],
+        stdout_ref=stdout_ref,
+        stderr_ref=stderr_ref,
+        final_summary=final_summary,
     )
 
 
@@ -80,40 +85,32 @@ def _run_subprocess(cmd: list, cwd: str, timeout: int = 300) -> tuple[int, str, 
 
 
 # ---------------------------------------------------------------------------
-# Codex CLI - with profile support
+# Codex CLI - OpenAI native
 # ---------------------------------------------------------------------------
 
-def run_codex(meta: TaskMeta, model: str = "codex-default", profile: str = "openai_native") -> RouteDecision:
-    """
-    Run Codex CLI.
-    
-    Parameters
-    ----------
-    meta    : TaskMeta  – Task metadata.
-    model   : str       – Model string (default "codex-default").
-    profile : str       – "openai_native" (OAuth, no API key) or "openrouter".
-    
-    When profile is "openrouter", routes via OpenRouter using the Kimi model.
-    """
-    if profile == "openrouter":
-        # Delegate to OpenRouter path
-        return run_codex_openrouter_kimi(meta)
-
-    # Default: openai_native profile — standard Codex CLI via OAuth
+def run_codex(meta: TaskMeta) -> ExecutorResult:
+    """Run Codex CLI via OpenAI native backend."""
+    task_id = meta.task_id or ""
     cwd = meta.cwd or meta.repo_path
+
+    start = time.time()
     returncode, stdout, stderr = _run_subprocess(
-        ["codex", meta.task_brief],
+        ["codex", meta.summary or task_id],
         cwd=cwd
     )
+    latency_ms = int((time.time() - start) * 1000)
 
     if returncode == 0:
-        return _make_decision(
-            Executor.CODEX_CLI,
-            ExecutorBackend.OPENAI_NATIVE,
-            ModelProfile.CODEX_PRIMARY,
-            model,
-            "codex: execution successful",
+        return _make_result(
+            task_id=task_id,
+            tool="codex_cli",
+            backend="openai_native",
+            model_profile="codex_primary",
+            success=True,
             exit_code=0,
+            latency_ms=latency_ms,
+            stdout_ref=stdout[:1000] if stdout else None,
+            final_summary=stdout[:500] if stdout else None,
         )
     elif "quota" in stderr.lower() or "limit" in stderr.lower():
         raise CodexQuotaError()
@@ -127,29 +124,27 @@ def run_codex(meta: TaskMeta, model: str = "codex-default", profile: str = "open
 # Codex CLI via OpenRouter - MiniMax
 # ---------------------------------------------------------------------------
 
-def run_codex_openrouter_minimax(meta: TaskMeta) -> RouteDecision:
-    """
-    Codex CLI via OpenRouter using MiniMax model.
-    profile=openrouter_minimax
-    """
+def run_codex_openrouter_minimax(meta: TaskMeta) -> ExecutorResult:
+    """Codex CLI via OpenRouter using MiniMax model."""
+    task_id = meta.task_id or ""
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
-        return _make_decision(
-            Executor.CODEX_CLI,
-            ExecutorBackend.OPENROUTER,
-            ModelProfile.OPENROUTER_MINIMAX,
-            OPENROUTER_MINIMAX_MODEL,
-            "codex openrouter minimax: API key missing",
-            exit_code=-1,
+        return _make_result(
+            task_id=task_id,
+            tool="codex_cli",
+            backend="openrouter",
+            model_profile="openrouter_minimax",
+            success=False,
             normalized_error="auth_error",
+            exit_code=-1,
         )
 
     return _openrouter_request(
         meta=meta,
         model=OPENROUTER_MINIMAX_MODEL,
-        executor=Executor.CODEX_CLI,
-        backend=ExecutorBackend.OPENROUTER,
-        model_profile=ModelProfile.OPENROUTER_MINIMAX,
+        tool="codex_cli",
+        backend="openrouter",
+        model_profile="openrouter_minimax",
     )
 
 
@@ -157,47 +152,46 @@ def run_codex_openrouter_minimax(meta: TaskMeta) -> RouteDecision:
 # Codex CLI via OpenRouter - Kimi
 # ---------------------------------------------------------------------------
 
-def run_codex_openrouter_kimi(meta: TaskMeta) -> RouteDecision:
-    """
-    Codex CLI via OpenRouter using Kimi model.
-    profile=openrouter_kimi
-    """
+def run_codex_openrouter_kimi(meta: TaskMeta) -> ExecutorResult:
+    """Codex CLI via OpenRouter using Kimi model."""
+    task_id = meta.task_id or ""
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
-        return _make_decision(
-            Executor.CODEX_CLI,
-            ExecutorBackend.OPENROUTER,
-            ModelProfile.OPENROUTER_KIMI,
-            OPENROUTER_KIMI_MODEL,
-            "codex openrouter kimi: API key missing",
-            exit_code=-1,
+        return _make_result(
+            task_id=task_id,
+            tool="codex_cli",
+            backend="openrouter",
+            model_profile="openrouter_kimi",
+            success=False,
             normalized_error="auth_error",
+            exit_code=-1,
         )
 
     return _openrouter_request(
         meta=meta,
         model=OPENROUTER_KIMI_MODEL,
-        executor=Executor.CODEX_CLI,
-        backend=ExecutorBackend.OPENROUTER,
-        model_profile=ModelProfile.OPENROUTER_KIMI,
+        tool="codex_cli",
+        backend="openrouter",
+        model_profile="openrouter_kimi",
     )
 
 
 def _openrouter_request(
     meta: TaskMeta,
     model: str,
-    executor: Executor,
-    backend: ExecutorBackend,
-    model_profile: ModelProfile,
-) -> RouteDecision:
-    """Make an OpenRouter API call and return RouteDecision."""
+    tool: str,
+    backend: str,
+    model_profile: str,
+) -> ExecutorResult:
+    """Make an OpenRouter API call and return ExecutorResult."""
+    task_id = meta.task_id or ""
     api_key = os.environ.get("OPENROUTER_API_KEY")
     url = "https://openrouter.ai/api/v1/chat/completions"
     request_id = str(uuid.uuid4())
-    
+
     payload = json.dumps({
         "model": model,
-        "messages": [{"role": "user", "content": meta.task_brief}],
+        "messages": [{"role": "user", "content": meta.summary or task_id}],
         "max_tokens": 4000
     }).encode('utf-8')
 
@@ -208,31 +202,37 @@ def _openrouter_request(
         "X-Title": "OpenClaw Router"
     }
 
+    start = time.time()
     try:
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=120) as response:
+            latency_ms = int((time.time() - start) * 1000)
             if response.status == 200:
-                return _make_decision(
-                    executor,
-                    backend,
-                    model_profile,
-                    model,
-                    f"openrouter: execution successful ({model})",
+                return _make_result(
+                    task_id=task_id,
+                    tool=tool,
+                    backend=backend,
+                    model_profile=model_profile,
+                    success=True,
                     exit_code=0,
+                    latency_ms=latency_ms,
                     request_id=request_id,
                 )
             else:
                 err_msg = f"HTTP {response.status}"
-                return _make_decision(
-                    executor,
-                    backend,
-                    model_profile,
-                    model,
-                    f"openrouter failed: {err_msg}",
-                    exit_code=response.status,
+                return _make_result(
+                    task_id=task_id,
+                    tool=tool,
+                    backend=backend,
+                    model_profile=model_profile,
+                    success=False,
                     normalized_error=normalize_error(err_msg),
+                    exit_code=response.status,
+                    latency_ms=latency_ms,
+                    request_id=request_id,
                 )
     except urllib.error.HTTPError as e:
+        latency_ms = int((time.time() - start) * 1000)
         body = e.read().decode("utf-8", errors="replace")
         err_msg = f"HTTP {e.code}: {body}"
         norm_err = normalize_error(err_msg)
@@ -240,25 +240,29 @@ def _openrouter_request(
             norm_err = "rate_limited"
         elif e.code == 401:
             norm_err = "auth_error"
-        return _make_decision(
-            executor,
-            backend,
-            model_profile,
-            model,
-            f"openrouter error: {err_msg}",
-            exit_code=e.code,
+        return _make_result(
+            task_id=task_id,
+            tool=tool,
+            backend=backend,
+            model_profile=model_profile,
+            success=False,
             normalized_error=norm_err,
+            exit_code=e.code,
+            latency_ms=latency_ms,
+            request_id=request_id,
         )
     except urllib.error.URLError as e:
+        latency_ms = int((time.time() - start) * 1000)
         err_msg = f"Request failed: {e.reason}"
-        return _make_decision(
-            executor,
-            backend,
-            model_profile,
-            model,
-            err_msg,
-            exit_code=-1,
+        return _make_result(
+            task_id=task_id,
+            tool=tool,
+            backend=backend,
+            model_profile=model_profile,
+            success=False,
             normalized_error=normalize_error(err_msg),
+            exit_code=-1,
+            latency_ms=latency_ms,
         )
 
 
@@ -266,22 +270,29 @@ def _openrouter_request(
 # Claude Code
 # ---------------------------------------------------------------------------
 
-def run_claude(meta: TaskMeta, model: str = "claude-default") -> RouteDecision:
+def run_claude(meta: TaskMeta) -> ExecutorResult:
     """Run Claude Code (Anthropic backend)."""
+    task_id = meta.task_id or ""
     cwd = meta.cwd or meta.repo_path
+
+    start = time.time()
     returncode, stdout, stderr = _run_subprocess(
-        ["claude", "-p", meta.task_brief],
+        ["claude", "-p", meta.summary or task_id],
         cwd=cwd
     )
+    latency_ms = int((time.time() - start) * 1000)
 
     if returncode == 0:
-        return _make_decision(
-            Executor.CLAUDE_CODE,
-            ExecutorBackend.ANTHROPIC,
-            ModelProfile.CLAUDE_PRIMARY,
-            model,
-            "claude: execution successful",
+        return _make_result(
+            task_id=task_id,
+            tool="claude_code",
+            backend="anthropic",
+            model_profile="claude_primary",
+            success=True,
             exit_code=0,
+            latency_ms=latency_ms,
+            stdout_ref=stdout[:1000] if stdout else None,
+            final_summary=stdout[:500] if stdout else None,
         )
     elif "quota" in stderr.lower() or "limit" in stderr.lower():
         raise ClaudeQuotaError()
@@ -298,13 +309,13 @@ def run_claude(meta: TaskMeta, model: str = "claude-default") -> RouteDecision:
 def run_openrouter(
     meta: TaskMeta,
     model: str = "minimax/minimax-m2.7",
-    profile: ModelProfile = ModelProfile.OPENROUTER_MINIMAX,
-) -> RouteDecision:
+    profile: str = "openrouter_minimax",
+) -> ExecutorResult:
     """Run OpenRouter API call with specified model."""
     return _openrouter_request(
         meta=meta,
         model=model,
-        executor=Executor.OPENROUTER,
-        backend=ExecutorBackend.OPENROUTER,
+        tool="openrouter",
+        backend="openrouter",
         model_profile=profile,
     )

@@ -2,11 +2,11 @@
 
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import List, Optional
 
 
 class TaskClass(str, Enum):
-    """High-level task classification (replaces task_type)."""
+    """High-level task classification."""
     IMPLEMENTATION = "implementation"
     REFACTOR = "refactor"
     BUGFIX = "bugfix"
@@ -27,6 +27,27 @@ class TaskModality(str, Enum):
     MIXED = "mixed"
 
 
+class TaskRisk(str, Enum):
+    """Risk level of the task."""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class CodexState(str, Enum):
+    """Codex usage state."""
+    NORMAL = "normal"
+    LAST10 = "last10"
+
+
+class Executor(str, Enum):
+    """Executor tool."""
+    CODEX_CLI = "codex_cli"
+    CLAUDE_CODE = "claude_code"
+    OPENROUTER = "openrouter"
+
+
 class ExecutorBackend(str, Enum):
     """Backend provider for an executor."""
     OPENAI_NATIVE = "openai_native"
@@ -40,90 +61,59 @@ class ModelProfile(str, Enum):
     CLAUDE_PRIMARY = "claude_primary"
     OPENROUTER_MINIMAX = "openrouter_minimax"
     OPENROUTER_KIMI = "openrouter_kimi"
+    OPENROUTER_DYNAMIC = "openrouter_dynamic"
 
 
-class TaskRisk(str, Enum):
-    HIGH = "high_risk"
-    MEDIUM = "medium"
-    LOW = "low"
-
-
-class TaskCriticality(str, Enum):
-    CRITICAL = "critical"
-    NORMAL = "normal"
-    LOW = "low"
-
-
-class CodexState(str, Enum):
-    NORMAL = "normal"
-    LAST10 = "last10"
-
-
-class Executor(str, Enum):
-    CODEX_CLI = "codex_cli"
-    CLAUDE_CODE = "claude_code"
-    OPENROUTER = "openrouter"
+@dataclass
+class ChainEntry:
+    """A single entry in the routing chain."""
+    tool: str
+    backend: str
+    model_profile: str
 
 
 @dataclass
 class TaskMeta:
     """Input task metadata from OpenClaw."""
-    agent: str
-    task_class: TaskClass  # renamed from task_type
-    task_brief: str
-    repo_path: str
-    branch: str
-    risk: TaskRisk
-    criticality: TaskCriticality
-    context_size: str  # "small", "medium", "large"
-    # New fields
     task_id: str = ""
+    agent: str = "coder"  # coder|reviewer|architect|designer|worker
+    task_class: TaskClass = TaskClass.IMPLEMENTATION
+    risk: TaskRisk = TaskRisk.MEDIUM
     modality: TaskModality = TaskModality.TEXT
+    requires_repo_write: bool = False
     requires_multimodal: bool = False
     has_screenshots: bool = False
     swarm: bool = False
+    repo_path: str = ""
     cwd: str = ""
+    summary: str = ""
 
 
 @dataclass
 class RouteDecision:
-    """Output decision from the router."""
+    """Output decision from the router — which chain was chosen and why."""
     task_id: str = ""
-    executor: Executor = Executor.CODEX_CLI
-    model: str = ""
-    chain: list = field(default_factory=list)  # list of executor names in chain
+    state: str = "normal"  # normal|last10
+    chain: List[ChainEntry] = field(default_factory=list)
     reason: str = ""
     attempted_fallback: bool = False
     fallback_from: Optional[str] = None
-    status: str = "success"  # "success" or "error"
-    error_type: Optional[str] = None
-    # New fields
-    tool: Optional[str] = None
-    backend: Optional[ExecutorBackend] = None
-    model_profile: Optional[ModelProfile] = None
-    normalized_error: Optional[str] = None
-    exit_code: Optional[int] = None
-    request_id: Optional[str] = None
-    cost_estimate_usd: Optional[float] = None
-    artifacts: list = field(default_factory=list)
-    stdout_ref: Optional[str] = None
-    stderr_ref: Optional[str] = None
-    final_summary: Optional[str] = None
 
 
 @dataclass
 class ExecutorResult:
-    """Result from an executor execution."""
+    """Result from an executor execution — outcome of running a tool."""
     task_id: str = ""
-    tool: str = ""  # executor name that was run
-    backend: ExecutorBackend = ExecutorBackend.OPENROUTER
-    model_profile: ModelProfile = ModelProfile.OPENROUTER_MINIMAX
+    tool: str = ""
+    backend: str = ""
+    model_profile: str = ""
     success: bool = True
     normalized_error: Optional[str] = None
     exit_code: Optional[int] = None
+    latency_ms: int = 0
     request_id: Optional[str] = None
     cost_estimate_usd: Optional[float] = None
-    artifacts: list = field(default_factory=list)
+    artifacts: List[str] = field(default_factory=list)
     stdout_ref: Optional[str] = None
     stderr_ref: Optional[str] = None
     final_summary: Optional[str] = None
