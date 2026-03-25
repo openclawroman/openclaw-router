@@ -14,17 +14,66 @@ import time
 import urllib.request
 import urllib.error
 import json
+from datetime import datetime, timezone
 from typing import Optional
+from pathlib import Path
 
 from .models import TaskMeta, ExecutorResult
 from .errors import (
     CodexQuotaError, CodexAuthError, CodexToolError,
     ClaudeQuotaError, ClaudeAuthError, ClaudeToolError,
-    OpenRouterError, normalize_error
+    OpenRouterError, ProviderTimeoutError, normalize_error
 )
 
 
 ENV = os.environ.copy()
+
+
+def _save_output_files(task_id: str, stdout: str, stderr: str) -> tuple[list[str], Optional[str], Optional[str]]:
+    """Save stdout/stderr to /tmp/{task_id}.*.txt files.
+
+    Returns (artifacts, stdout_ref, stderr_ref).
+    """
+    artifacts: list[str] = []
+    stdout_ref: Optional[str] = None
+    stderr_ref: Optional[str] = None
+
+    if task_id:
+        if stdout:
+            path = f"/tmp/{task_id}.stdout.txt"
+            Path(path).write_text(stdout, encoding="utf-8")
+            artifacts.append(path)
+            stdout_ref = path
+        if stderr:
+            path = f"/tmp/{task_id}.stderr.txt"
+            Path(path).write_text(stderr, encoding="utf-8")
+            artifacts.append(path)
+            stderr_ref = path
+
+    return artifacts, stdout_ref, stderr_ref
+
+
+def _update_claude_health(success: bool, error_type: Optional[str] = None) -> None:
+    """Write runtime/claude_health.json after each Claude invocation."""
+    runtime_dir = Path("runtime")
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+
+    if success:
+        health = {
+            "available": True,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "reason": "recent successful invocation",
+        }
+    else:
+        health = {
+            "available": False,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "reason": error_type or "unknown error",
+        }
+
+    (runtime_dir / "claude_health.json").write_text(
+        json.dumps(health, indent=2), encoding="utf-8"
+    )
 
 # OpenRouter models
 OPENROUTER_MINIMAX_MODEL = "minimax/minimax-m2.7"
@@ -66,8 +115,8 @@ def _make_result(
     )
 
 
-def _run_subprocess(cmd: list, cwd: str, timeout: int = 300) -> tuple[int, str, str]:
-    """Run a subprocess, return (returncode, stdout, stderr)."""
+def _run_subprocess(cmd: list, cwd: str, timeout: int = 300) -> tuple[int, str, str, bool]:
+    """Run a subprocess, return (returncode, stdout, stderr, timed_out)."""
     try:
         result = subprocess.run(
             cmd,
@@ -77,11 +126,11 @@ def _run_subprocess(cmd: list, cwd: str, timeout: int = 300) -> tuple[int, str, 
             text=True,
             timeout=timeout
         )
-        return result.returncode, result.stdout, result.stderr
+        return result.returncode, result.stdout, result.stderr, False
     except subprocess.TimeoutExpired:
-        return -1, "", "Execution timed out"
+        return -1, "", "Execution timed out", True
     except FileNotFoundError as e:
-        return -1, "", str(e)
+        return -1, "", str(e), False
 
 
 # ---------------------------------------------------------------------------
@@ -94,11 +143,13 @@ def run_codex(meta: TaskMeta) -> ExecutorResult:
     cwd = meta.cwd or meta.repo_path
 
     start = time.time()
-    returncode, stdout, stderr = _run_subprocess(
+    returncode, stdout, stderr, timed_out = _run_subprocess(
         ["codex", meta.summary or task_id],
         cwd=cwd
     )
     latency_ms = int((time.time() - start) * 1000)
+
+    artifacts, stdout_ref, stderr_ref = _save_output_files(task_id, stdout, stderr)
 
     if returncode == 0:
         return _make_result(
@@ -109,9 +160,13 @@ def run_codex(meta: TaskMeta) -> ExecutorResult:
             success=True,
             exit_code=0,
             latency_ms=latency_ms,
-            stdout_ref=stdout[:1000] if stdout else None,
+            artifacts=artifacts,
+            stdout_ref=stdout_ref,
+            stderr_ref=stderr_ref,
             final_summary=stdout[:500] if stdout else None,
         )
+    elif timed_out:
+        raise ProviderTimeoutError("Codex execution timed out")
     elif "quota" in stderr.lower() or "limit" in stderr.lower():
         raise CodexQuotaError()
     elif "auth" in stderr.lower() or "unauthorized" in stderr.lower():
@@ -276,13 +331,16 @@ def run_claude(meta: TaskMeta) -> ExecutorResult:
     cwd = meta.cwd or meta.repo_path
 
     start = time.time()
-    returncode, stdout, stderr = _run_subprocess(
+    returncode, stdout, stderr, timed_out = _run_subprocess(
         ["claude", "-p", meta.summary or task_id],
         cwd=cwd
     )
     latency_ms = int((time.time() - start) * 1000)
 
+    artifacts, stdout_ref, stderr_ref = _save_output_files(task_id, stdout, stderr)
+
     if returncode == 0:
+        _update_claude_health(success=True)
         return _make_result(
             task_id=task_id,
             tool="claude_code",
@@ -291,14 +349,22 @@ def run_claude(meta: TaskMeta) -> ExecutorResult:
             success=True,
             exit_code=0,
             latency_ms=latency_ms,
-            stdout_ref=stdout[:1000] if stdout else None,
+            artifacts=artifacts,
+            stdout_ref=stdout_ref,
+            stderr_ref=stderr_ref,
             final_summary=stdout[:500] if stdout else None,
         )
+    elif timed_out:
+        _update_claude_health(success=False, error_type="provider_timeout")
+        raise ProviderTimeoutError("Claude execution timed out")
     elif "quota" in stderr.lower() or "limit" in stderr.lower():
+        _update_claude_health(success=False, error_type="quota_exhausted")
         raise ClaudeQuotaError()
     elif "auth" in stderr.lower() or "unauthorized" in stderr.lower():
+        _update_claude_health(success=False, error_type="auth_error")
         raise ClaudeAuthError()
     else:
+        _update_claude_health(success=False, error_type="toolchain_error")
         raise ClaudeToolError(stderr or "Unknown error")
 
 
