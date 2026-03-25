@@ -122,6 +122,7 @@ class RouteDecision:
     providers_skipped: List[str] = field(default_factory=list)
     chain_timed_out: bool = False
     fallback_count: int = 0
+    trace_id: str = ""
 
 
 @dataclass
@@ -141,3 +142,4 @@ class ExecutorResult:
     stdout_ref: Optional[str] = None
     stderr_ref: Optional[str] = None
     final_summary: Optional[str] = None
+    trace_id: str = ""
