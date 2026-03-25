@@ -18,7 +18,7 @@ from .errors import ExecutorError
 # Configurable model strings
 # ---------------------------------------------------------------------------
 
-OPENROUTER_MINIMAX_MODEL = "minimax/minimax-m2.5"
+OPENROUTER_MINIMAX_MODEL = "minimax/minimax-m2.7"
 OPENROUTER_KIMI_MODEL = "moonshotai/kimi-k2.5"
 
 
