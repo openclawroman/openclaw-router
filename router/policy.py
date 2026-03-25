@@ -59,6 +59,21 @@ def choose_openrouter_profile(task: TaskMeta) -> ModelProfile:
     return ModelProfile.OPENROUTER_MINIMAX
 
 
+def choose_openai_profile(task: TaskMeta) -> str:
+    """
+    Select OpenAI model based on task complexity.
+    Returns model string from config.
+
+    Heavy (gpt-5.4): risk=critical, task_class=repo_architecture_change, task_class=debug
+    Light (gpt-5.4-mini): everything else
+    """
+    if task.risk == TaskRisk.CRITICAL:
+        return get_model("gpt54")
+    if task.task_class in (TaskClass.REPO_ARCHITECTURE_CHANGE, TaskClass.DEBUG):
+        return get_model("gpt54")
+    return get_model("gpt54_mini")
+
+
 def _openrouter_model(profile: ModelProfile) -> str:
     if profile == ModelProfile.OPENROUTER_KIMI:
         return get_model("kimi")
@@ -93,8 +108,10 @@ def can_fallback(error_type: Optional[str]) -> bool:
 def _build_normal_chain(task: TaskMeta) -> List[ChainEntry]:
     """Build chain for normal state: codex_cli:openai_native -> claude_code:anthropic -> codex_cli:openrouter."""
     openrouter_profile = choose_openrouter_profile(task)
+    openai_model = choose_openai_profile(task)
+    openai_profile = "codex_gpt54" if openai_model == get_model("gpt54") else "codex_gpt54_mini"
     return [
-        ChainEntry(tool="codex_cli", backend="openai_native", model_profile="codex_primary"),
+        ChainEntry(tool="codex_cli", backend="openai_native", model_profile=openai_profile),
         ChainEntry(tool="claude_code", backend="anthropic", model_profile="claude_primary"),
         ChainEntry(tool="codex_cli", backend="openrouter", model_profile=openrouter_profile.value),
     ]
@@ -123,6 +140,10 @@ def build_chain(task: TaskMeta, state: CodexState) -> List[ChainEntry]:
 def _run_executor(entry: ChainEntry, task: TaskMeta) -> ExecutorResult:
     """Dispatch to the appropriate executor based on chain entry."""
     if entry.tool == "codex_cli" and entry.backend == "openai_native":
+        if entry.model_profile == "codex_gpt54":
+            return run_codex(task, model=get_model("gpt54"))
+        elif entry.model_profile == "codex_gpt54_mini":
+            return run_codex(task, model=get_model("gpt54_mini"))
         return run_codex(task)
     elif entry.tool == "claude_code" and entry.backend == "anthropic":
         return run_claude(task)

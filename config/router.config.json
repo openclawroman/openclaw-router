@@ -5,7 +5,9 @@
       "kimi": "moonshotai/kimi-k2.5"
     },
     "codex": {
-      "default": "codex-default"
+      "default": "codex-default",
+      "gpt54": "gpt-5.4",
+      "gpt54_mini": "gpt-5.4-mini"
     },
     "claude": {
       "default": "claude-default"

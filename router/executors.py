@@ -135,14 +135,25 @@ def _run_subprocess(cmd: list, cwd: str, timeout: int = 300) -> tuple[int, str, 
 # Codex CLI - OpenAI native
 # ---------------------------------------------------------------------------
 
-def run_codex(meta: TaskMeta) -> ExecutorResult:
-    """Run Codex CLI via OpenAI native backend."""
+def run_codex(meta: TaskMeta, model: Optional[str] = None) -> ExecutorResult:
+    """Run Codex CLI via OpenAI native backend.
+
+    Args:
+        meta: Task metadata.
+        model: Optional model string override (e.g. "gpt-5.4" or "gpt-5.4-mini").
+               If None, falls back to the default codex model.
+    """
     task_id = meta.task_id or ""
     cwd = meta.cwd or meta.repo_path
 
+    cmd = ["codex"]
+    if model:
+        cmd.extend(["--model", model])
+    cmd.append(meta.summary or task_id)
+
     start = time.time()
     returncode, stdout, stderr, timed_out = _run_subprocess(
-        ["codex", meta.summary or task_id],
+        cmd,
         cwd=cwd
     )
     latency_ms = int((time.time() - start) * 1000)

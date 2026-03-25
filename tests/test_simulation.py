@@ -58,7 +58,7 @@ class MockExecutorConfig:
 def _make_mock_executors(config: MockExecutorConfig):
     """Create mock executor functions bound to the given config."""
 
-    def mock_run_codex(task):
+    def mock_run_codex(task, model=None):
         entry = ChainEntry(tool="codex_cli", backend="openai_native", model_profile="codex_primary")
         return config.get_result(entry, task)
 

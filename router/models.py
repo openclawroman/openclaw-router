@@ -58,6 +58,8 @@ class ExecutorBackend(str, Enum):
 class ModelProfile(str, Enum):
     """Model profile identifier."""
     CODEX_PRIMARY = "codex_primary"
+    CODEX_GPT54 = "codex_gpt54"
+    CODEX_GPT54_MINI = "codex_gpt54_mini"
     CLAUDE_PRIMARY = "claude_primary"
     OPENROUTER_MINIMAX = "openrouter_minimax"
     OPENROUTER_KIMI = "openrouter_kimi"
