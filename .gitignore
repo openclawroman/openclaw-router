@@ -11,3 +11,4 @@ config/codex_auto_state.json
 dist/
 build/
 runtime/alerts.jsonl
+config/codex_state_wal.jsonl
