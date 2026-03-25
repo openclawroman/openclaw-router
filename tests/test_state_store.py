@@ -1,7 +1,6 @@
 """Tests for StateStore — Codex state detection and manual override resolution."""
 
 import json
-import tempfile
 from pathlib import Path
 
 import pytest

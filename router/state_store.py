@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from .models import CodexState
-from .errors import StateError, ConfigurationError
+from .errors import StateError
 
 
 CONFIG_DIR = Path(__file__).parent.parent / "config"
