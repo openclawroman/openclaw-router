@@ -63,7 +63,7 @@ class TestChainTimeout:
         )
         monkeypatch.setattr(
             "router.policy._run_executor",
-            lambda entry, task: ExecutorResult(
+            lambda entry, task, trace_id="": ExecutorResult(
                 task_id="t1", tool=entry.tool, backend=entry.backend,
                 model_profile=entry.model_profile, success=True,
             ),
@@ -101,7 +101,7 @@ class TestFallbackLoopGuard:
 
         call_count = 0
 
-        def always_fails(entry, task):
+        def always_fails(entry, task, trace_id=""):
             nonlocal call_count
             call_count += 1
             return ExecutorResult(
@@ -137,7 +137,7 @@ class TestFallbackLoopGuard:
         )
         monkeypatch.setattr(
             "router.policy._run_executor",
-            lambda entry, task: ExecutorResult(
+            lambda entry, task, trace_id="": ExecutorResult(
                 task_id="t1", tool=entry.tool, backend=entry.backend,
                 model_profile=entry.model_profile, success=True,
             ),
@@ -168,7 +168,7 @@ class TestFallbackLoopGuard:
         )
         monkeypatch.setattr(
             "router.policy._run_executor",
-            lambda entry, task: ExecutorResult(
+            lambda entry, task, trace_id="": ExecutorResult(
                 task_id="t1", tool=entry.tool, backend=entry.backend,
                 model_profile=entry.model_profile, success=False,
                 normalized_error="toolchain_error",
@@ -202,7 +202,7 @@ class TestFallbackLoopGuard:
         )
         monkeypatch.setattr(
             "router.policy._run_executor",
-            lambda entry, task: ExecutorResult(
+            lambda entry, task, trace_id="": ExecutorResult(
                 task_id="t1", tool=entry.tool, backend=entry.backend,
                 model_profile=entry.model_profile, success=False,
                 normalized_error="auth_error",

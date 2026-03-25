@@ -2,6 +2,7 @@
 
 import os
 import time
+import uuid
 from enum import Enum
 from pathlib import Path
 from typing import Optional, List, Tuple
@@ -216,28 +217,33 @@ def build_chain(task: TaskMeta, state: CodexState) -> List[ChainEntry]:
 # Executor dispatch
 # ---------------------------------------------------------------------------
 
-def _run_executor(entry: ChainEntry, task: TaskMeta) -> ExecutorResult:
+def _run_executor(entry: ChainEntry, task: TaskMeta, trace_id: str = "") -> ExecutorResult:
     """Dispatch to the appropriate executor based on chain entry."""
     if entry.tool == "codex_cli" and entry.backend == "openai_native":
         if entry.model_profile == "codex_gpt54":
-            return run_codex(task, model=get_model("gpt54"))
+            result = run_codex(task, model=get_model("gpt54"))
         elif entry.model_profile == "codex_gpt54_mini":
-            return run_codex(task, model=get_model("gpt54_mini"))
-        return run_codex(task)
+            result = run_codex(task, model=get_model("gpt54_mini"))
+        else:
+            result = run_codex(task)
     elif entry.tool == "claude_code" and entry.backend == "anthropic":
         model = None
         if entry.model_profile == "claude_opus":
             model = get_model("opus")
         elif entry.model_profile == "claude_sonnet":
             model = get_model("sonnet")
-        return run_claude(task, model=model)
+        result = run_claude(task, model=model)
     elif entry.tool == "codex_cli" and entry.backend == "openrouter":
         model = _openrouter_model(ModelProfile(entry.model_profile))
-        return run_openrouter(task, model=model, profile=entry.model_profile)
+        result = run_openrouter(task, model=model, profile=entry.model_profile)
     else:
         # Fallback: generic openrouter call
         model = _openrouter_model(ModelProfile.OPENROUTER_MINIMAX)
-        return run_openrouter(task, model=model)
+        result = run_openrouter(task, model=model)
+
+    # Stamp trace_id on the result
+    result.trace_id = trace_id
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -276,6 +282,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
 
     state = resolve_state()
     chain = build_chain(task, state)
+    trace_id = uuid.uuid4().hex[:12]  # 12-char hex trace ID
     reliability = get_reliability_config()
     chain_timeout_s = reliability.get("chain_timeout_s", 600)
     max_fallbacks = reliability.get("max_fallbacks", 3)
@@ -313,6 +320,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                     model_profile="",
                     success=False,
                     normalized_error="chain_timeout",
+                    trace_id=trace_id,
                 )
                 break
 
@@ -323,7 +331,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
 
             last_error = None
             try:
-                result = _run_executor(entry, task)
+                result = _run_executor(entry, task, trace_id=trace_id)
                 if result.success:
                     breaker.record_success(entry.tool, entry.backend)
                     break
@@ -352,6 +360,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                     model_profile=entry.model_profile,
                     success=False,
                     normalized_error=e.error_type,
+                    trace_id=trace_id,
                 )
                 if not can_fallback(e.error_type):
                     break
@@ -369,6 +378,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                 task_id=task.task_id,
                 success=False,
                 normalized_error=last_error or "unknown_error",
+                trace_id=trace_id,
             )
 
         decision = RouteDecision(
@@ -381,6 +391,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
             providers_skipped=providers_skipped,
             chain_timed_out=chain_timed_out,
             fallback_count=fallback_count,
+            trace_id=trace_id,
         )
 
         return decision, result
