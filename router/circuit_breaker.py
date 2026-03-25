@@ -96,3 +96,35 @@ class CircuitBreaker:
     def get_stats(self) -> Dict[str, Any]:
         """Get all provider stats."""
         return {k: asdict(v) for k, v in self._providers.items()}
+
+    def get_provider_states(self) -> Dict[str, dict]:
+        """Get state of all tracked providers."""
+        states = {}
+        for key, ps in self._providers.items():
+            states[key] = {
+                "state": ps.state,
+                "failure_count": ps.failure_count,
+                "last_failure_time": ps.last_failure_time,
+                "last_success_time": ps.last_success_time,
+                "opened_at": ps.opened_at,
+            }
+        return states
+
+    def get_health_summary(self) -> dict:
+        """Get a summary of all provider health."""
+        total = len(self._providers)
+        if total == 0:
+            return {"total_providers": 0, "healthy": 0, "degraded": 0, "unhealthy": 0, "providers": {}}
+
+        providers = self.get_provider_states()
+        healthy = sum(1 for p in providers.values() if p["state"] == "closed")
+        degraded = sum(1 for p in providers.values() if p["state"] == "half_open")
+        unhealthy = sum(1 for p in providers.values() if p["state"] == "open")
+
+        return {
+            "total_providers": total,
+            "healthy": healthy,
+            "degraded": degraded,
+            "unhealthy": unhealthy,
+            "providers": providers,
+        }
