@@ -62,6 +62,9 @@ class RoutingTrace:
         return d
 
 
+from .secrets import redact_dict
+
+
 class AttemptLogger:
     """Collects executor attempts and writes structured trace."""
 
@@ -71,8 +74,8 @@ class AttemptLogger:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
     def log_trace(self, trace: RoutingTrace) -> None:
-        """Write a routing trace to the log file."""
-        entry = {"type": "routing_trace", **trace.to_dict()}
+        """Write a routing trace to the log file (secrets redacted)."""
+        entry = {"type": "routing_trace", **redact_dict(trace.to_dict())}
         with open(self.log_path, "a") as f:
             f.write(json.dumps(entry) + "\n")
 

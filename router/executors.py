@@ -24,6 +24,7 @@ from .errors import (
     ClaudeQuotaError, ClaudeAuthError, ClaudeToolError,
     OpenRouterError, ProviderTimeoutError, normalize_error
 )
+from .secrets import sanitize_secrets
 
 
 ENV = os.environ.copy()
@@ -313,7 +314,7 @@ def _openrouter_request(
             )
     except urllib.error.HTTPError as e:
         latency_ms = int((time.time() - start) * 1000)
-        body = e.read().decode("utf-8", errors="replace")
+        body = sanitize_secrets(e.read().decode("utf-8", errors="replace"))
         err_msg = f"HTTP {e.code}: {body}"
         norm_err = normalize_error(err_msg)
         if e.code == 429:
@@ -345,7 +346,7 @@ def _openrouter_request(
         )
     except urllib.error.URLError as e:
         latency_ms = int((time.time() - start) * 1000)
-        err_msg = f"Request failed: {e.reason}"
+        err_msg = f"Request failed: {sanitize_secrets(str(e.reason))}"
         save_content = json.dumps({
             "request": payload_dict,
             "error": str(e.reason),
