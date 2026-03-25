@@ -247,6 +247,14 @@ These inform transitions from `openai_primary` to `openai_conservation` and beyo
 | Emergency override | OPENAI_PRIMARY, CLAUDE_BACKUP always allowed |
 | State history | Last 50 transitions with timestamps |
 
+### Performance
+
+| Aspect | Target | Implementation |
+|--------|--------|---------------|
+| Routing latency | < 10ms (excluding executor) | StateStore singleton, in-memory state cache, no disk I/O per route |
+| Thread safety | Concurrent `route_task()` safe | `threading.RLock` (reentrant), atomic file writes via tempfile + rename |
+| Config memoization | Zero-copy reads | `MappingProxyType` snapshot cached after first load, `get_config_snapshot()` returns cached reference |
+
 ---
 
 ## Routing Contract
