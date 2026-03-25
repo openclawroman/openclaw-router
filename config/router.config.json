@@ -171,6 +171,10 @@
       "transient_network_error"
     ]
   },
+  "reliability": {
+    "chain_timeout_s": 600,
+    "max_fallbacks": 3
+  },
   "logging": {
     "jsonl_path": "runtime/routing.jsonl"
   },

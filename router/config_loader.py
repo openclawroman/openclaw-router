@@ -75,6 +75,7 @@ def get_reliability_config() -> dict:
         "chain_timeout_s": reliability.get("chain_timeout_s", 600),
         "drain_timeout_s": reliability.get("drain_timeout_s", 30),
         "max_retries": reliability.get("max_retries", 2),
+        "max_fallbacks": reliability.get("max_fallbacks", 3),
     }
 
 
