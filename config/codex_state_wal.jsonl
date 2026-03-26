@@ -1,164 +1,164 @@
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.741660+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.742309+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.742600+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.743304+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.743657+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.745138+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.745373+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.746085+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.746290+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.746933+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.747170+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.748054+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.748282+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.749011+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.749298+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.749976+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.750216+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.750895+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.751130+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.751895+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.752180+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.752938+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.753155+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.753797+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.754002+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.754652+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.754905+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.755568+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.755803+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.756546+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.756752+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.757559+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.757841+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.758617+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.758825+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.759545+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.759830+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.760585+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.760869+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.761537+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.761772+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.762647+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.762931+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.763699+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.763905+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.764518+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.764722+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.765541+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.765828+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.766523+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.766729+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.767556+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.767814+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.768593+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.768855+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.769476+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.769715+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.770484+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.770767+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.771433+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.771642+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.772355+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.772615+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.773385+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.773668+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.774394+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.774677+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.775458+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.775744+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.776423+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.776657+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.777524+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.777805+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.778468+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.778702+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.779387+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.779622+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.780318+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.780524+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.781232+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.781516+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.782381+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.782609+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.783234+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.783466+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.784330+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.784610+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.785320+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.785553+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.786316+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.786599+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.787461+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.787667+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.788387+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.788653+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.789292+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.789497+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.790206+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.790435+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.791141+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.791426+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.792194+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.792489+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.793166+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.793405+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.794267+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.794549+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.795400+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.795606+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.796310+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.796592+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.797351+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.797633+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.798283+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.798487+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.799120+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.799327+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.800031+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.800315+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.801073+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.801337+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.802043+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.802328+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.803079+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.803365+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.804098+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.804331+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.805144+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.805379+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.806137+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.806418+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.807212+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.807495+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.808336+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.808621+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.809266+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.809481+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.810107+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.810342+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.811111+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.811383+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.812137+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.812358+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.813085+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.813369+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.814102+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.814405+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.815268+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.815572+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.816301+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.816570+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.817360+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.817628+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.818452+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.818750+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.819494+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T06:10:49.819716+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.820545+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T06:10:49.820854+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.821566+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T06:10:49.821820+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.822623+00:00"}
-{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-479/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T06:10:49.822942+00:00"}
-{"action": "committed", "timestamp": "2026-03-26T06:10:49.823578+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:27.972950+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.973828+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:27.974174+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.975059+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:27.975519+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.977020+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:27.977279+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.978147+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:27.978433+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.979263+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:27.979526+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.980360+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:27.980615+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.981415+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:27.981672+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.982480+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:27.982736+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.983561+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:27.983834+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.984505+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:27.984709+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.985430+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:27.985646+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.986275+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:27.986513+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.987302+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:27.987533+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.988219+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:27.988449+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.989123+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:27.989369+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.989983+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:27.990214+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.990880+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:27.991112+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.991773+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:27.992008+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.992792+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:27.993023+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.993711+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:27.993931+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.994642+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:27.994922+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.995588+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:27.995822+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.996600+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:27.996883+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.997552+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:27.997786+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.998451+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:27.998681+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:27.999364+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:27.999569+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.000178+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.000383+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.000991+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.001226+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.001954+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:28.002186+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.002952+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:28.003214+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.003907+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.004114+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.004922+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:28.005184+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.005905+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.006139+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.006903+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.007186+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.007932+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:28.008196+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.008810+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:28.009040+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.009786+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.010059+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.010842+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.011124+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.011917+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:28.012196+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.012840+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:28.013073+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.013834+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.014118+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.014791+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.014995+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.015624+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.015829+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.016528+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:28.016789+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.017485+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:28.017711+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.018322+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.018552+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.019296+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.019579+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.020302+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:28.020533+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.021229+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:28.021464+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.022131+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.022337+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.023028+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.023332+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.024008+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.024237+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.024955+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.025216+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.025838+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:28.026051+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.026659+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:28.026891+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.027550+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.027765+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.028409+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.028643+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.029433+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:28.029666+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.030389+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:28.030622+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.031293+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.031523+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.032187+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.032392+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.033090+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.033368+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.034214+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:28.034496+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.035345+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:28.035636+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.036330+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.036569+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.037340+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.037630+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.038375+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:28.038670+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.039547+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:28.039814+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.040588+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.040820+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.041599+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.041890+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.042562+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/auto.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:28.042772+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.043477+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.043699+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.044408+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:28.044745+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.045595+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:28.045884+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.046557+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.046818+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.047526+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.047780+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.048579+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:28.048838+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.049620+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_conservation"}, "timestamp": "2026-03-26T07:57:28.049876+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.050582+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "claude_backup"}, "timestamp": "2026-03-26T07:57:28.050826+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.051628+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openrouter_fallback"}, "timestamp": "2026-03-26T07:57:28.051927+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.052627+00:00"}
+{"action": "write", "path": "/private/var/folders/xy/z24pqb7137g7lzj69tc95wg80000gq/T/pytest-of-openclaw/pytest-517/test_file_integrity_after_conc0/manual.json", "data": {"state": "openai_primary"}, "timestamp": "2026-03-26T07:57:28.052882+00:00"}
+{"action": "committed", "timestamp": "2026-03-26T07:57:28.053585+00:00"}

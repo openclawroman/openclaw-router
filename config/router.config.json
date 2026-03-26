@@ -7,9 +7,9 @@
       "cost_usd": 250
     },
     "thresholds": {
-      "warning": 0.80,
-      "critical": 0.90,
-      "exhausted": 1.0
+      "warning": 0.50,
+      "critical": 0.75,
+      "exhausted": 0.95
     }
   },
   "models": {

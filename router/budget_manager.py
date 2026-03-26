@@ -68,9 +68,9 @@ def _default_config() -> dict:
             "cost_usd": 250.0,
         },
         "thresholds": {
-            "warning": 0.80,
-            "critical": 0.90,
-            "exhausted": 1.0,
+            "warning": 0.50,
+            "critical": 0.75,
+            "exhausted": 0.95,
         },
     }
 
@@ -126,7 +126,7 @@ class BudgetManager:
         self._enabled = budget_cfg.get("enabled", False)
         self._period = budget_cfg.get("period", "monthly")
         self._limits = budget_cfg.get("limits", {"tokens": 6_500_000_000, "cost_usd": 250.0})
-        self._thresholds = budget_cfg.get("thresholds", {"warning": 0.80, "critical": 0.90, "exhausted": 1.0})
+        self._thresholds = budget_cfg.get("thresholds", {"warning": 0.50, "critical": 0.75, "exhausted": 0.95})
 
         self._state_dir = Path(state_dir) if state_dir else Path("config")
         self._state_path = self._state_dir / self.BUDGET_STATE_FILE
