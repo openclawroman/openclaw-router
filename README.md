@@ -97,7 +97,7 @@ openrouter_fallback
 
 #### openai_conservation
 **Goal:** Stay in OpenAI lane but conserve subscription quota.
-**Chain:** Codex CLI → OpenRouter → Claude Code
+**Chain:** Codex CLI → Claude Code → OpenRouter
 **Model selection:** gpt-5.4-mini for almost everything, gpt-5.4 only for planner/final-review/high-risk.
 
 #### claude_backup
