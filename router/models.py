@@ -130,6 +130,15 @@ class TaskMeta:
             return TaskPhase.VISUAL
         return TaskPhase.EXECUTE
 
+    @property
+    def phase(self) -> str:
+        """Derive pipeline phase from task_class."""
+        if self.task_class == TaskClass.PLANNER:
+            return "plan"
+        if self.task_class == TaskClass.FINAL_REVIEW:
+            return "validate"
+        return "execute"
+
 
 @dataclass
 class RouteDecision:

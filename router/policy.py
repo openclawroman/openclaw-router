@@ -422,7 +422,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
     start_time = time.monotonic()
 
     state_str = state.value
-    reason = f"{state_str}: standard chain"
+    reason = f"state={state_str}, phase={task.phase}, modality={task.modality.value}"
     if state in (CodexState.CLAUDE_BACKUP, CodexState.OPENROUTER_FALLBACK):
         # No OpenAI lane available in these states
         pass  # chain already doesn't include openai_native
@@ -701,7 +701,9 @@ class ReviewMode(str, Enum):
 
 
 def select_review_mode(task: TaskMeta) -> ReviewMode:
-    """Fast by default, deep for high risk or architecture changes."""
+    """Fast by default, deep for high risk, final review, or architecture changes."""
+    if task.task_class == TaskClass.FINAL_REVIEW:
+        return ReviewMode.DEEP
     if task.risk == TaskRisk.HIGH or task.task_class == TaskClass.REPO_ARCHITECTURE_CHANGE:
         return ReviewMode.DEEP
     return ReviewMode.FAST
