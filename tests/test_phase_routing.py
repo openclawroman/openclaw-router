@@ -563,7 +563,7 @@ class TestPhaseEdgeCases:
         if decision.phase is not None:
             TaskPhase = _import_phase_enum()
             assert decision.phase in {TaskPhase.DECIDE, TaskPhase.EXECUTE,
-                                       TaskPhase.VISUAL, TaskPhase.HEAVY_EXEC}
+                                       TaskPhase.VISUAL}
 
 
 # ===================================================================
@@ -600,11 +600,11 @@ class TestPhaseConservationBehavior:
         chain = build_chain(task, CodexState.OPENAI_CONSERVATION)
         assert chain[0].model_profile == "codex_gpt54_mini"
 
-    def test_architecture_change_uses_mini_in_conservation(self):
-        """REPO_ARCHITECTURE_CHANGE (not critical) → still mini in conservation.
+    def test_architecture_change_uses_gpt54_in_conservation(self):
+        """REPO_ARCHITECTURE_CHANGE → gpt-5.4 in conservation (heavy execution).
 
-        In conservation, only PLANNER/FINAL_REVIEW/CRITICAL get gpt-5.4.
-        REPO_ARCHITECTURE_CHANGE alone is not enough — the bar is higher.
+        is_heavy_execution_task includes REPO_ARCHITECTURE_CHANGE, so it gets
+        gpt-5.4 (not mini) in conservation mode.
         """
         task = _make_task(
             "Restructure the module hierarchy",
@@ -612,7 +612,7 @@ class TestPhaseConservationBehavior:
             risk=TaskRisk.HIGH,
         )
         chain = build_chain(task, CodexState.OPENAI_CONSERVATION)
-        assert chain[0].model_profile == "codex_gpt54_mini"
+        assert chain[0].model_profile == "codex_gpt54"
 
     def test_critical_any_class_gets_gpt54(self):
         """CRITICAL risk + any task_class → gpt-5.4 in conservation."""
@@ -769,16 +769,20 @@ class TestClaudeBackupPhaseComprehensive:
         chain = build_chain(task, CodexState.CLAUDE_BACKUP)
         assert chain[0].model_profile == "claude_sonnet"
 
-    def test_debug_uses_sonnet_in_backup(self):
-        """DEBUG (not critical) → Sonnet in backup (primary gives gpt-5.4 for debug)."""
+    def test_debug_uses_opus_in_backup(self):
+        """DEBUG → Opus in backup (heavy execution gets strongest Claude).
+
+        is_heavy_execution_task includes DEBUG regardless of risk level,
+        so DEBUG gets Opus in claude_backup state.
+        """
         task = _make_task(
             "Debug memory leak",
             task_class=TaskClass.DEBUG,
             risk=TaskRisk.MEDIUM,
         )
         chain = build_chain(task, CodexState.CLAUDE_BACKUP)
-        # In claude_backup, debug without critical risk gets Sonnet
-        assert chain[0].model_profile == "claude_sonnet"
+        # In claude_backup, debug gets Opus (heavy execution)
+        assert chain[0].model_profile == "claude_opus"
 
 
 # ===================================================================

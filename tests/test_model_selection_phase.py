@@ -7,7 +7,7 @@ strongest model in each state, regardless of risk level.
 import pytest
 
 from router.models import (
-    TaskMeta, TaskClass, TaskRisk, TaskModality,
+    TaskMeta, TaskClass, TaskRisk, TaskModality, TaskPhase,
     CodexState, ModelProfile,
 )
 from router.policy import (
@@ -200,23 +200,23 @@ class TestReviewMode:
 # ---------------------------------------------------------------------------
 
 class TestTaskPhase:
-    """TaskMeta.phase derived from task_class."""
+    """TaskMeta.phase inferred from task_class."""
 
-    def test_planner_phase_is_plan(self):
+    def test_planner_phase_is_decide(self):
         task = _make_task(task_class=TaskClass.PLANNER)
-        assert task.phase == "plan"
+        assert task.inferred_phase() == TaskPhase.DECIDE
 
-    def test_final_review_phase_is_validate(self):
+    def test_final_review_phase_is_decide(self):
         task = _make_task(task_class=TaskClass.FINAL_REVIEW)
-        assert task.phase == "validate"
+        assert task.inferred_phase() == TaskPhase.DECIDE
 
     def test_implementation_phase_is_execute(self):
         task = _make_task(task_class=TaskClass.IMPLEMENTATION)
-        assert task.phase == "execute"
+        assert task.inferred_phase() == TaskPhase.EXECUTE
 
     def test_debug_phase_is_execute(self):
         task = _make_task(task_class=TaskClass.DEBUG)
-        assert task.phase == "execute"
+        assert task.inferred_phase() == TaskPhase.EXECUTE
 
 
 # ---------------------------------------------------------------------------
@@ -246,7 +246,7 @@ class TestRouteReason:
         with patch("router.policy._run_executor", return_value=mock_result):
             decision, result = route_task(task)
 
-        assert "phase=plan" in decision.reason
+        assert "phase=decide" in decision.reason
 
     def test_reason_includes_state(self, patched_routing, monkeypatch):
         """Reason string must contain state=<state>."""
@@ -309,7 +309,7 @@ class TestRouteReason:
         with patch("router.policy._run_executor", return_value=mock_result):
             decision, result = route_task(task)
 
-        assert "phase=validate" in decision.reason
+        assert "phase=decide" in decision.reason
         assert "modality=mixed" in decision.reason
         assert "state=" in decision.reason
 

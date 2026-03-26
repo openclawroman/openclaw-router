@@ -422,7 +422,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
     start_time = time.monotonic()
 
     state_str = state.value
-    reason = f"state={state_str}, phase={task.phase}, modality={task.modality.value}"
+    reason = f"state={state_str}, phase={task.inferred_phase().value}, modality={task.modality.value}"
     if state in (CodexState.CLAUDE_BACKUP, CodexState.OPENROUTER_FALLBACK):
         # No OpenAI lane available in these states
         pass  # chain already doesn't include openai_native
@@ -666,6 +666,7 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
             fallback_count=fallback_count,
             trace_id=trace_id,
             error_history=error_history,
+            phase=task.inferred_phase(),
         )
 
         return decision, result

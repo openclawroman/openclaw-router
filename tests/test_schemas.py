@@ -90,7 +90,7 @@ class TestRouteDecision:
     def test_spec_field_names(self):
         expected = {"task_id", "state", "chain", "reason", "attempted_fallback",
                     "fallback_from", "providers_skipped", "chain_timed_out",
-                    "fallback_count", "trace_id", "error_history"}
+                    "fallback_count", "trace_id", "error_history", "phase"}
         assert set(vars(RouteDecision()).keys()) == expected
 
 

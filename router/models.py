@@ -118,7 +118,6 @@ class TaskMeta:
     repo_path: str = ""
     cwd: str = ""
     summary: str = ""
-    phase: TaskPhase = field(default_factory=lambda: TaskPhase.EXECUTE)
 
     def inferred_phase(self) -> TaskPhase:
         """Infer phase from task_class if phase is still default EXECUTE."""
@@ -129,15 +128,6 @@ class TaskMeta:
         if self.task_class in (TaskClass.UI_FROM_SCREENSHOT, TaskClass.MULTIMODAL_CODE_TASK) or self.has_screenshots or self.requires_multimodal:
             return TaskPhase.VISUAL
         return TaskPhase.EXECUTE
-
-    @property
-    def phase(self) -> str:
-        """Derive pipeline phase from task_class."""
-        if self.task_class == TaskClass.PLANNER:
-            return "plan"
-        if self.task_class == TaskClass.FINAL_REVIEW:
-            return "validate"
-        return "execute"
 
 
 @dataclass
@@ -154,6 +144,7 @@ class RouteDecision:
     fallback_count: int = 0
     trace_id: str = ""
     error_history: List[dict] = field(default_factory=list)
+    phase: Optional["TaskPhase"] = None
 
 
 @dataclass
