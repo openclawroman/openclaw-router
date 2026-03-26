@@ -261,11 +261,64 @@ These inform transitions from `openai_primary` to `openai_conservation` and beyo
 
 ### Input: OpenClaw → ai-code-runner
 
-The ai-code-runner receives a JSON object via stdin containing `task_meta` with fields: `task_id`, `agent`, `task_class`, `risk`, `modality`, `requires_repo_write`, `requires_multimodal`, `has_screenshots`, `swarm`, `repo_path`, `cwd`, `summary`.
+The ai-code-runner receives a JSON object via stdin. The bridge sends the full task envelope:
+
+```json
+{
+  "protocol_version": 1,
+  "task": "Human-readable task description",
+  "task_id": "task_abc123",
+  "task_meta": {
+    "task_id": "task_abc123",
+    "agent": "coder",
+    "task_class": "implementation",
+    "risk": "medium",
+    "modality": "text",
+    "requires_repo_write": false,
+    "requires_multimodal": false,
+    "has_screenshots": false,
+    "swarm": false,
+    "repo_path": "/path/to/repo"
+  },
+  "prompt": "Full prompt text...",
+  "attachments": [],
+  "scope": {
+    "scope_id": "thread-123",
+    "thread_id": "thread-123",
+    "session_id": "sess-456"
+  },
+  "context": {
+    "working_directory": "/path",
+    "git_branch": "main"
+  },
+  "timeout_ms": 60000
+}
+```
+
+The router also reads `task_id` from the top level and `cwd` from multiple locations (top-level, task_meta, context.working_directory).
 
 ### Output: ai-code-runner → OpenClaw
 
-The ai-code-runner returns an `ExecutorResult` via stdout with fields: `task_id`, `tool`, `backend`, `model_profile`, `success`, `normalized_error`, `exit_code`, `latency_ms`, `request_id`, `cost_estimate_usd`, `artifacts`, `stdout_ref`, `stderr_ref`, `final_summary`.
+The ai-code-runner returns an `ExecutorResult` via stdout with fields: `protocol_version`, `task_id`, `tool`, `backend`, `model_profile`, `success`, `normalized_error`, `exit_code`, `latency_ms`, `request_id`, `cost_estimate_usd`, `artifacts`, `stdout_ref`, `stderr_ref`, `final_summary`.
+
+### Error Output
+
+On fatal errors (e.g. invalid JSON), the router writes to stderr and exits non-zero:
+```json
+{"error": "Invalid JSON input: ...", "protocol_version": 1}
+```
+
+### Environment Variables
+
+The router sets environment variables for executor subprocesses from the input `scope` and `context`:
+
+| Env Var | Source |
+|---------|--------|
+| `OPENCLAW_SCOPE_ID` | `scope.scope_id` |
+| `OPENCLAW_THREAD_ID` | `scope.thread_id` |
+| `OPENCLAW_SESSION_ID` | `scope.session_id` |
+| `OPENCLAW_GIT_BRANCH` | `context.git_branch` |
+| `OPENCLAW_WORKING_DIR` | `context.working_directory` |
 
 ### Key Contract Rules
 
