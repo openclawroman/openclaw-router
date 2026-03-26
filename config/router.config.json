@@ -38,11 +38,7 @@
   },
   "openclaw": {
     "delegate_all_coding_tasks": true,
-    "delegate_mode": "blocking",
-    "runner_command": [
-      "python3",
-      "ai_code_runner.py"
-    ]
+    "delegate_mode": "blocking"
   },
   "tools": {
     "codex_cli": {
@@ -183,10 +179,6 @@
       "provider_timeout",
       "transient_network_error"
     ]
-  },
-  "reliability": {
-    "chain_timeout_s": 600,
-    "max_fallbacks": 3
   },
   "logging": {
     "jsonl_path": "runtime/routing.jsonl"

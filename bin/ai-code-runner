@@ -177,17 +177,21 @@ def main():
         input_data = json.load(sys.stdin)
         task = parse_task_meta(input_data)
 
-        # Extract scope metadata (for logging/context)
+        # Store scope metadata in env for executors
         scope = input_data.get("scope", {})
-        if scope:
-            os.environ["OPENCLAW_SCOPE_ID"] = str(scope.get("scope_id", ""))
-            os.environ["OPENCLAW_THREAD_ID"] = str(scope.get("thread_id", "") or "")
-            os.environ["OPENCLAW_SESSION_ID"] = str(scope.get("session_id", "") or "")
+        if scope.get("scope_id"):
+            os.environ["OPENCLAW_SCOPE_ID"] = str(scope["scope_id"])
+        if scope.get("thread_id"):
+            os.environ["OPENCLAW_THREAD_ID"] = str(scope["thread_id"])
+        if scope.get("session_id"):
+            os.environ["OPENCLAW_SESSION_ID"] = str(scope["session_id"])
 
-        # Extract context fields
+        # Store context in env
         context = input_data.get("context", {})
-        if context:
-            os.environ["OPENCLAW_GIT_BRANCH"] = str(context.get("git_branch", "") or "")
+        if context.get("git_branch"):
+            os.environ["OPENCLAW_GIT_BRANCH"] = str(context["git_branch"])
+        if context.get("working_directory"):
+            os.environ["OPENCLAW_WORKING_DIR"] = str(context["working_directory"])
 
         # Store protocol version
         protocol_version = input_data.get("protocol_version", 1)
@@ -201,13 +205,13 @@ def main():
         decision, result = route_task(task)
         total_latency_ms = int((time.time() - start_time) * 1000)
 
-        # Log the decision with full envelope context
+        # Log
         logger = RoutingLogger()
         logger.log(task, decision, result, latency_ms=total_latency_ms)
 
-        # Output ExecutorResult
-        output = result_to_dict(result, protocol_version=protocol_version)
-
+        # Output with protocol_version
+        output = result_to_dict(result)
+        output["protocol_version"] = protocol_version
         print(json.dumps(output, indent=2))
 
     except json.JSONDecodeError as e:
