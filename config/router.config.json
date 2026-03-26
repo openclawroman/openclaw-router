@@ -1,4 +1,17 @@
 {
+  "budget": {
+    "enabled": false,
+    "period": "monthly",
+    "limits": {
+      "tokens": 6500000000,
+      "cost_usd": 250
+    },
+    "thresholds": {
+      "warning": 0.80,
+      "critical": 0.90,
+      "exhausted": 1.0
+    }
+  },
   "models": {
     "openrouter": {
       "minimax": "minimax/minimax-m2.7",
