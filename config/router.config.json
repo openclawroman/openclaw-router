@@ -35,7 +35,7 @@
     "codex_cli": {
       "profiles": {
         "openai_native": {
-          "model": "o3",
+          "model": "gpt-5.4",
           "timeout_s": 300
         },
         "openrouter": {
