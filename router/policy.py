@@ -10,7 +10,7 @@ from typing import Optional, List, Tuple
 from .models import (
     TaskMeta, RouteDecision, ExecutorResult, ChainEntry,
     Executor, ExecutorBackend, ModelProfile,
-    CodexState, TaskRisk, TaskClass, TaskModality
+    CodexState, TaskRisk, TaskClass, TaskModality, TaskPhase
 )
 from .state_store import StateStore, get_state_store
 from .executors import run_codex, run_claude, run_openrouter
@@ -22,6 +22,28 @@ from .circuit_breaker import CircuitBreaker
 from .budget_manager import get_budget_manager, reset_budget_manager as _reset_budget_mgr
 
 MAX_ERROR_MESSAGE_LENGTH = 200
+
+
+# ---------------------------------------------------------------------------
+# Intent-aware task helpers
+# ---------------------------------------------------------------------------
+
+def is_decision_task(task: TaskMeta) -> bool:
+    """Decision tasks need strong reasoning models (planning, triage, final review)."""
+    return task.inferred_phase() == TaskPhase.DECIDE
+
+
+def is_visual_task(task: TaskMeta) -> bool:
+    """Visual tasks need multimodal models."""
+    return task.inferred_phase() == TaskPhase.VISUAL
+
+
+def is_heavy_execution_task(task: TaskMeta) -> bool:
+    """Hard execution tasks (critical writes, debug, architecture change)."""
+    return (
+        task.risk == TaskRisk.CRITICAL
+        or task.task_class in (TaskClass.DEBUG, TaskClass.REPO_ARCHITECTURE_CHANGE)
+    )
 
 
 def _truncate_error_message(msg: str) -> str:
@@ -123,9 +145,9 @@ def choose_openrouter_profile(task: TaskMeta) -> ModelProfile:
     Choose the OpenRouter model profile based on task characteristics.
     Kimi for multimodal/screenshot, MiMo for hardest tasks, MiniMax default.
     """
-    if task.has_screenshots or task.requires_multimodal:
+    if is_visual_task(task):
         return ModelProfile.OPENROUTER_KIMI
-    if task.risk == TaskRisk.CRITICAL or task.task_class in (TaskClass.DEBUG, TaskClass.REPO_ARCHITECTURE_CHANGE):
+    if is_decision_task(task) or is_heavy_execution_task(task):
         return ModelProfile.OPENROUTER_MIMO
     return ModelProfile.OPENROUTER_MINIMAX
 
@@ -135,30 +157,17 @@ def choose_openai_profile(task: TaskMeta) -> str:
     Select OpenAI model based on task complexity.
     Returns model string from config.
 
-    Heavy (gpt-5.4):
-      - risk=critical
-      - task_class=repo_architecture_change
-      - task_class=debug
-      - task_class=planner       (needs reasoning/thinking model)
-      - task_class=final_review  (needs thorough review model)
-
-    Light (gpt-5.4-mini): everything else
+    Heavy (gpt-5.4): decision tasks or heavy execution.
+    Light (gpt-5.4-mini): everything else.
     """
-    if task.risk == TaskRisk.CRITICAL:
-        return get_model("gpt54")
-    if task.task_class in (
-        TaskClass.REPO_ARCHITECTURE_CHANGE,
-        TaskClass.DEBUG,
-        TaskClass.PLANNER,
-        TaskClass.FINAL_REVIEW,
-    ):
+    if is_decision_task(task) or is_heavy_execution_task(task):
         return get_model("gpt54")
     return get_model("gpt54_mini")
 
 
 def choose_claude_model(task: TaskMeta) -> str:
     """Select Claude model based on task complexity. Sonnet default, Opus for hard cases."""
-    if task.risk == TaskRisk.CRITICAL or task.task_class == TaskClass.REPO_ARCHITECTURE_CHANGE:
+    if is_decision_task(task) or is_heavy_execution_task(task):
         return get_model("opus")
     return get_model("sonnet")
 
@@ -205,16 +214,11 @@ def _build_openai_conservation_chain(task: TaskMeta) -> List[ChainEntry]:
     Spec: "default executor for almost everything → gpt-5.4-mini.
     Only planner / final review / very high-risk tasks → gpt-5.4."
 
-    gpt-5.4 reserved for:
-      - risk=CRITICAL (production incidents)
-      - task_class=PLANNER (needs reasoning model for planning/architecture)
-      - task_class=FINAL_REVIEW (needs thorough review model)
-
+    gpt-5.4 reserved for decision tasks and heavy execution.
     Chain order: Codex → Claude → OpenRouter (Claude is still a prepaid bucket,
     OpenRouter is paid — subscription preservation comes first).
     """
-    # Higher bar than primary: CRITICAL risk or thinking-intensive tasks get gpt-5.4
-    if task.risk == TaskRisk.CRITICAL or task.task_class in (TaskClass.PLANNER, TaskClass.FINAL_REVIEW):
+    if is_decision_task(task) or is_heavy_execution_task(task):
         openai_profile = "codex_gpt54"
     else:
         openai_profile = "codex_gpt54_mini"

@@ -29,6 +29,13 @@ class TaskModality(str, Enum):
     MIXED = "mixed"
 
 
+class TaskPhase(str, Enum):
+    """Task phase — determines which intent-aware routing to apply."""
+    DECIDE = "decide"      # Planning, triage, final review — needs strong reasoning
+    VISUAL = "visual"      # Visual/multimodal tasks — needs multimodal model
+    EXECUTE = "execute"    # Default execution — lightweight model sufficient
+
+
 class TaskRisk(str, Enum):
     """Risk level of the task."""
     LOW = "low"
@@ -101,6 +108,7 @@ class TaskMeta:
     task_id: str = ""
     agent: str = "coder"  # coder|reviewer|architect|designer|worker
     task_class: TaskClass = TaskClass.IMPLEMENTATION
+    phase: TaskPhase = TaskPhase.EXECUTE
     risk: TaskRisk = TaskRisk.MEDIUM
     modality: TaskModality = TaskModality.TEXT
     requires_repo_write: bool = False
@@ -110,6 +118,16 @@ class TaskMeta:
     repo_path: str = ""
     cwd: str = ""
     summary: str = ""
+
+    def inferred_phase(self) -> TaskPhase:
+        """Infer phase from task_class if phase is still default EXECUTE."""
+        if self.phase != TaskPhase.EXECUTE:
+            return self.phase
+        if self.task_class in (TaskClass.PLANNER, TaskClass.FINAL_REVIEW):
+            return TaskPhase.DECIDE
+        if self.task_class in (TaskClass.UI_FROM_SCREENSHOT, TaskClass.MULTIMODAL_CODE_TASK) or self.has_screenshots or self.requires_multimodal:
+            return TaskPhase.VISUAL
+        return TaskPhase.EXECUTE
 
 
 @dataclass
