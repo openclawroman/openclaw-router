@@ -18,9 +18,9 @@ class TestEnums:
     def test_all_task_classes_present(self):
         expected = {"implementation", "refactor", "bugfix", "debug", "code_review",
                     "test_generation", "repo_architecture_change", "ui_from_screenshot",
-                    "multimodal_code_task", "swarm_code_task"}
+                    "multimodal_code_task", "swarm_code_task", "planner", "final_review"}
         assert {tc.value for tc in TaskClass} == expected
-        assert len(TaskClass) == 10
+        assert len(TaskClass) == 12
 
     def test_modality_values(self):
         assert {m.value for m in TaskModality} == {"text", "image", "video", "mixed"}

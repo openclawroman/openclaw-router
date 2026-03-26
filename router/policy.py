@@ -19,6 +19,7 @@ from .config_loader import get_model, get_reliability_config
 from .attempt_logger import AttemptLogger, ExecutorAttempt, RoutingTrace
 from .notifications import NotificationManager
 from .circuit_breaker import CircuitBreaker
+from .budget_manager import get_budget_manager, reset_budget_manager as _reset_budget_mgr
 
 MAX_ERROR_MESSAGE_LENGTH = 200
 
@@ -79,6 +80,11 @@ def reset_notifier() -> None:
     _notifier = None
 
 
+def reset_budget() -> None:
+    """Reset the budget manager singleton. For testing."""
+    _reset_budget_mgr()
+
+
 # ---------------------------------------------------------------------------
 # State helpers
 # ---------------------------------------------------------------------------
@@ -129,12 +135,23 @@ def choose_openai_profile(task: TaskMeta) -> str:
     Select OpenAI model based on task complexity.
     Returns model string from config.
 
-    Heavy (gpt-5.4): risk=critical, task_class=repo_architecture_change, task_class=debug
+    Heavy (gpt-5.4):
+      - risk=critical
+      - task_class=repo_architecture_change
+      - task_class=debug
+      - task_class=planner       (needs reasoning/thinking model)
+      - task_class=final_review  (needs thorough review model)
+
     Light (gpt-5.4-mini): everything else
     """
     if task.risk == TaskRisk.CRITICAL:
         return get_model("gpt54")
-    if task.task_class in (TaskClass.REPO_ARCHITECTURE_CHANGE, TaskClass.DEBUG):
+    if task.task_class in (
+        TaskClass.REPO_ARCHITECTURE_CHANGE,
+        TaskClass.DEBUG,
+        TaskClass.PLANNER,
+        TaskClass.FINAL_REVIEW,
+    ):
         return get_model("gpt54")
     return get_model("gpt54_mini")
 
@@ -187,11 +204,17 @@ def _build_openai_conservation_chain(task: TaskMeta) -> List[ChainEntry]:
 
     Spec: "default executor for almost everything → gpt-5.4-mini.
     Only planner / final review / very high-risk tasks → gpt-5.4."
+
+    gpt-5.4 reserved for:
+      - risk=CRITICAL (production incidents)
+      - task_class=PLANNER (needs reasoning model for planning/architecture)
+      - task_class=FINAL_REVIEW (needs thorough review model)
+
     Chain order: Codex → Claude → OpenRouter (Claude is still a prepaid bucket,
     OpenRouter is paid — subscription preservation comes first).
     """
-    # Higher bar than primary: only CRITICAL risk gets gpt-5.4
-    if task.risk == TaskRisk.CRITICAL:
+    # Higher bar than primary: CRITICAL risk or thinking-intensive tasks get gpt-5.4
+    if task.risk == TaskRisk.CRITICAL or task.task_class in (TaskClass.PLANNER, TaskClass.FINAL_REVIEW):
         openai_profile = "codex_gpt54"
     else:
         openai_profile = "codex_gpt54_mini"
@@ -370,6 +393,10 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
                 final_summary="Router is shutting down, not accepting new tasks",
             ),
         )
+
+    # Budget check: auto-transition if threshold exceeded
+    budget_mgr = get_budget_manager()
+    budget_mgr.check_and_transition()
 
     state = resolve_state()
     chain = build_chain(task, state)

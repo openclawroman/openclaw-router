@@ -41,6 +41,8 @@ TASK_CLASS_FORMATS: dict[TaskClass, Set[OutputFormat]] = {
     TaskClass.UI_FROM_SCREENSHOT:      {OutputFormat.FILES, OutputFormat.INLINE},
     TaskClass.MULTIMODAL_CODE_TASK:    {OutputFormat.FILES, OutputFormat.INLINE, OutputFormat.MIXED},
     TaskClass.SWARM_CODE_TASK:         {OutputFormat.DIFF, OutputFormat.FILES, OutputFormat.MIXED},
+    TaskClass.PLANNER:                 {OutputFormat.PLAN},
+    TaskClass.FINAL_REVIEW:            {OutputFormat.PLAN},
 }
 
 # Default format per task class
@@ -55,6 +57,8 @@ DEFAULT_FORMAT: dict[TaskClass, OutputFormat] = {
     TaskClass.UI_FROM_SCREENSHOT:       OutputFormat.FILES,
     TaskClass.MULTIMODAL_CODE_TASK:     OutputFormat.FILES,
     TaskClass.SWARM_CODE_TASK:          OutputFormat.DIFF,
+    TaskClass.PLANNER:                  OutputFormat.PLAN,
+    TaskClass.FINAL_REVIEW:             OutputFormat.PLAN,
 }
 
 
