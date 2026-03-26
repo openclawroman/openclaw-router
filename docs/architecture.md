@@ -44,7 +44,7 @@ The two planes compose: subscription state determines *which lane to prefer*, ta
 | State | Goal | Primary Chain |
 |-------|------|---------------|
 | `openai_primary` | Maximize Codex subscription | Codex → Claude → OpenRouter |
-| `openai_conservation` | Conserve OpenAI usage | Codex → OpenRouter → Claude |
+| `openai_conservation` | Conserve OpenAI usage | Codex → Claude → OpenRouter |
 | `claude_backup` | Use Claude subscription | Claude → OpenRouter |
 | `openrouter_fallback` | Last resort | OpenRouter only |
 
@@ -72,7 +72,7 @@ openrouter_fallback
 #### openai_conservation
 
 - **Goal:** Stay in OpenAI lane but conserve subscription quota
-- **Chain:** `codex_cli:openai_native` → `codex_cli:openrouter` → `claude_code:anthropic`
+- **Chain:** `codex_cli:openai_native` → `claude_code:anthropic` → `codex_cli:openrouter`
 - **Model selection:** gpt-5.4-mini for almost everything, gpt-5.4 only for planner/final-review/high-risk
 - **When to use:** Approaching weekly quota limit, rate pressure signals
 
@@ -299,7 +299,7 @@ The router also reads `task_id` from the top level and `cwd` from multiple locat
 
 ### Output: ai-code-runner → OpenClaw
 
-The ai-code-runner returns an `ExecutorResult` via stdout with fields: `protocol_version`, `task_id`, `tool`, `backend`, `model_profile`, `success`, `normalized_error`, `exit_code`, `latency_ms`, `request_id`, `cost_estimate_usd`, `artifacts`, `stdout_ref`, `stderr_ref`, `final_summary`.
+The ai-code-runner returns an `ExecutorResult` via stdout with fields: `protocol_version`, `task_id`, `tool`, `backend`, `model_profile`, `success`, `normalized_error`, `exit_code`, `latency_ms`, `request_id`, `cost_estimate_usd`, `artifacts`, `stdout_ref`, `stderr_ref`, `final_summary`, `trace_id`, `rate_limit_info`, `partial_success`, `warnings`, `error_history`.
 
 ### Error Output
 

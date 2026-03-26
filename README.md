@@ -1,8 +1,8 @@
 # ai-code-runner
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-1784%20passing-brightgreen.svg)](#testing)
-[![Coverage](https://img.shields.io/badge/coverage-95.73%25-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-1922%20passing-brightgreen.svg)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-95.35%25-brightgreen.svg)](#testing)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 
 **An external routing layer for OpenClaw coding tasks.** Classifies tasks, selects the right executor (Codex CLI, Claude Code, or OpenRouter), handles fallback, and logs everything.
@@ -182,7 +182,8 @@ Sent to `ai-code-runner` via `stdin` JSON. Describes what needs to be done.
 |-------|------|--------|-------------|
 | `task_id` | `str` | — | Unique task identifier |
 | `agent` | `str` | `coder`, `reviewer`, `architect`, `designer`, `worker` | Agent role requesting execution |
-| `task_class` | `str` | 10 types (e.g. `implementation`, `refactor`, `test`, `review`, ...) | Task classification |
+| `task_class` | `str` | 12 types: `implementation`, `refactor`, `bugfix`, `debug`, `code_review`, `test_generation`, `repo_architecture_change`, `ui_from_screenshot`, `multimodal_code_task`, `swarm_code_task`, `planner`, `final_review` | Task classification |
+| `phase` | `str` | — | Pipeline phase (e.g. `implementation`, `review`) |
 | `risk` | `str` | `low`, `medium`, `high`, `critical` | Risk level — affects review depth |
 | `modality` | `str` | `text`, `image`, `video`, `mixed` | Content modality |
 | `requires_repo_write` | `bool` | — | Whether the task writes to the repo |
@@ -205,6 +206,12 @@ Returned after routing. Describes the executor chain and routing rationale.
 | `reason` | `str` | Human-readable routing explanation |
 | `attempted_fallback` | `bool` | Whether fallback was triggered |
 | `fallback_from` | `str | None` | Which executor failed, triggering fallback |
+| `fallback_count` | `int` | Number of fallbacks attempted |
+| `providers_skipped` | `list[str]` | Providers skipped by circuit breaker |
+| `chain_timed_out` | `bool` | Whether the chain hit its timeout |
+| `trace_id` | `str` | 12-char hex trace ID for log correlation |
+| `error_history` | `list[str]` | Accumulated error types from failed attempts |
+| `phase` | `str | None` | Pipeline phase if applicable |
 
 ### ExecutorResult (Execution Output)
 
@@ -226,6 +233,11 @@ Returned after execution. Contains the outcome, metrics, and artifacts.
 | `stdout_ref` | `str | None` | Reference to stdout output |
 | `stderr_ref` | `str | None` | Reference to stderr output |
 | `final_summary` | `str | None` | Human-readable result summary |
+| `trace_id` | `str | None` | Trace ID for log correlation |
+| `rate_limit_info` | `dict | None` | Parsed rate limit headers from response |
+| `partial_success` | `bool` | Whether executor produced useful output before failing |
+| `warnings` | `list[str] | None` | Non-fatal warnings during execution |
+| `error_history` | `list[str] | None` | Accumulated error types from prior attempts |
 
 ---
 
@@ -321,14 +333,16 @@ openclaw-router/
 │   ├── sanitize.py             # Input/output sanitization
 │   ├── secrets.py              # Secret detection and redaction
 │   ├── model_registry.py       # Model versioning registry
-│   └── benchmark.py            # Routing latency benchmark harness
+│   ├── benchmark.py            # Routing latency benchmark harness
+│   └── budget_manager.py       # Token/cost budget tracking per provider
 ├── config/
 │   ├── router.config.json      # Full configuration schema
+│   ├── router.config.dev.json  # Development config overrides
 │   ├── router.yaml             # Model configuration
 │   ├── codex_manual_state.json # Manual state override
 │   ├── codex_auto_state.json   # Auto state (managed by router)
 │   ├── codex_state_wal.jsonl   # Write-ahead log for state persistence
-│   └── codex_state_history.json # State transition history
+│   └── budget_state.json       # Budget tracking state
 ├── runtime/
 │   ├── routing.jsonl           # Append-only routing decision log
 │   └── alerts.jsonl            # Notification alert log
@@ -336,7 +350,7 @@ openclaw-router/
 │   ├── architecture.md         # Full architecture spec
 │   └── runbooks.md             # Operational runbooks
 ├── tests/
-│   └── (71 test files, 1784 tests)
+│   └── (76 test files, 1922 tests)
 └── README.md                   # This file
 ```
 
@@ -367,7 +381,7 @@ pip3 install pytest
 python3 -m pytest tests/ -q
 ```
 
-Expected: `1784 passed`
+Expected: `1922 passed`
 
 ---
 

@@ -11,7 +11,7 @@ The 4-state subscription-aware architecture is **well-designed and functionally 
 ### State Machine
 - All 4 state chains are built correctly with the expected fallback order:
   - `openai_primary`: codex → claude → openrouter ✓
-  - `openai_conservation`: codex → openrouter → claude ✓
+  - `openai_conservation`: codex → claude → openrouter ✓
   - `claude_backup`: claude → openrouter ✓
   - `openrouter_fallback`: openrouter only ✓
 

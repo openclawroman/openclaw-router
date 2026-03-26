@@ -36,7 +36,7 @@ Run the full test suite to verify everything works:
 python3 -m pytest tests/ -q
 ```
 
-Expected output: all tests pass (e.g. `400+ passed`). If any test fails, check that your Python version meets the prerequisites and that you're in the repository root.
+Expected output: all tests pass (`1922 passed, 10 skipped`). If any test fails, check that your Python version meets the prerequisites and that you're in the repository root.
 
 **Verification:** Confirm the exit code is 0:
 
@@ -137,7 +137,7 @@ The router monitors these signals for automatic transitions:
 
 ---
 
-## 3. Provider Setup
+## 4. Provider Setup
 
 ### Codex CLI (OpenAI Native)
 
@@ -206,7 +206,7 @@ claude -p "say hello" --max-tokens 10
 
 ---
 
-## 4. Monitoring
+## 5. Monitoring
 
 ### Tail the Routing Log
 
@@ -367,7 +367,7 @@ grep "trace_id=abc123" runtime/routing.jsonl
 
 ---
 
-## 5. End-to-End Dry Runs
+## 6. End-to-End Dry Runs
 
 ### Dry Run 1: OpenAI Primary State Routing
 
@@ -518,7 +518,7 @@ print('DRY RUN 5 PASSED')
 
 ---
 
-## 6. Config Validation
+## 7. Config Validation
 
 The router includes a config validation system that checks `config/router.config.json` at startup and can be run manually via CLI.
 
@@ -587,23 +587,23 @@ The `VALID_STATES` set in `config_validator.py` is kept in sync with the `Router
 
 ---
 
-## 9. Performance
+## 8. Performance
 
-### Routing Latency (7.1)
+### Routing Latency (8.1)
 
 - **Target:** routing decision < 10ms (excluding executor runtime)
 - **Benchmark:** `python3 -m router.benchmark` or `pytest --benchmark`
 - **Measured components:** `resolve_state()`, `build_chain()`, `get_model()`, circuit breaker check
 - **Key optimization:** StateStore singleton with in-memory cache (no disk I/O per route)
 
-### Thread Safety (7.2)
+### Thread Safety (8.2)
 
 - StateStore uses `threading.RLock` for all state operations
 - Safe for concurrent `route_task()` calls from multiple threads
 - Reentrant lock: methods can call other locked methods safely
 - State files are atomically written (tempfile + rename) even under concurrent access
 
-### Config Memoization (7.3)
+### Config Memoization (8.3)
 
 - Config snapshot cached as `MappingProxyType` (immutable) after first load
 - `get_config_snapshot()` returns cached snapshot (no deepcopy, no file read)
@@ -614,7 +614,7 @@ The `VALID_STATES` set in `config_validator.py` is kept in sync with the `Router
 
 ---
 
-## 7. Config Hot-Reload
+## 9. Config Hot-Reload
 
 The router supports thread-safe config hot-reload with immutable snapshots. This allows reloading configuration at runtime without restarting the service, while guaranteeing that no caller sees partially-updated or mutable config state.
 
@@ -672,7 +672,7 @@ timeout = snapshot["reliability"]["chain_timeout_s"]
 - **Immutable returns**: `load_config()` returns a `copy.deepcopy()` of the raw config — mutations to the returned dict don't affect the global snapshot
 - **Deep immutability**: `_freeze()` recursively converts all dicts to `MappingProxyType` and all lists to tuples, so no part of the snapshot can be mutated
 
-## 8. State Management
+## 10. State Management
 
 ### WAL/Journal
 
