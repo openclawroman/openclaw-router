@@ -53,7 +53,7 @@ class TestTaskMeta:
 
     def test_field_names_match_spec(self):
         meta = TaskMeta()
-        expected = {"task_id", "agent", "task_class", "risk", "modality",
+        expected = {"task_id", "agent", "task_class", "phase", "risk", "modality",
                     "requires_repo_write", "requires_multimodal", "has_screenshots",
                     "swarm", "repo_path", "cwd", "summary"}
         assert set(vars(meta).keys()) == expected

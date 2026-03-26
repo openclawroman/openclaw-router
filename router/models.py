@@ -108,6 +108,7 @@ class TaskMeta:
     task_id: str = ""
     agent: str = "coder"  # coder|reviewer|architect|designer|worker
     task_class: TaskClass = TaskClass.IMPLEMENTATION
+    phase: TaskPhase = TaskPhase.EXECUTE
     risk: TaskRisk = TaskRisk.MEDIUM
     modality: TaskModality = TaskModality.TEXT
     requires_repo_write: bool = False
@@ -118,6 +119,16 @@ class TaskMeta:
     cwd: str = ""
     summary: str = ""
     phase: TaskPhase = field(default_factory=lambda: TaskPhase.EXECUTE)
+
+    def inferred_phase(self) -> TaskPhase:
+        """Infer phase from task_class if phase is still default EXECUTE."""
+        if self.phase != TaskPhase.EXECUTE:
+            return self.phase
+        if self.task_class in (TaskClass.PLANNER, TaskClass.FINAL_REVIEW):
+            return TaskPhase.DECIDE
+        if self.task_class in (TaskClass.UI_FROM_SCREENSHOT, TaskClass.MULTIMODAL_CODE_TASK) or self.has_screenshots or self.requires_multimodal:
+            return TaskPhase.VISUAL
+        return TaskPhase.EXECUTE
 
 
 @dataclass
