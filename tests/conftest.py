@@ -13,7 +13,7 @@ from router.models import (
     TaskMeta, TaskClass, TaskRisk, TaskModality,
     RouteDecision, ExecutorResult, ChainEntry, CodexState,
 )
-from router.state_store import StateStore
+from router.state_store import StateStore, reset_state_store
 from router.policy import route_task, build_chain, resolve_state, reset_breaker, reset_notifier
 
 
@@ -94,6 +94,40 @@ class MockExecutorChain:
             idx = min(self._idx, len(self.executors) - 1)
             self._idx += 1
         return self.executors[idx](meta, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Shared helper functions
+# ---------------------------------------------------------------------------
+
+def make_result(task_id: str, *, success: bool = True, tool: str = "codex_cli",
+                backend: str = "openai_native", model_profile: str = "codex_primary",
+                cost_usd: float = 0.002, latency_ms: int = 150,
+                error_type: str | None = None,
+                summary: str = "Task completed",
+                artifacts: list[str] | None = None,
+                partial_success: bool = False):
+    """Build an ExecutorResult for testing. On failure, final_summary=None to prevent partial_success."""
+    return ExecutorResult(
+        task_id=task_id, tool=tool, backend=backend, model_profile=model_profile,
+        success=success, partial_success=partial_success,
+        normalized_error=error_type,
+        exit_code=0 if success else 1, latency_ms=latency_ms,
+        cost_estimate_usd=cost_usd if success else 0.0,
+        artifacts=artifacts if success else (artifacts or []),
+        final_summary=summary if success else None,
+    )
+
+
+def make_task(task_id: str = "test-001", *, task_class=TaskClass.IMPLEMENTATION,
+              risk=TaskRisk.MEDIUM, summary: str = "Test task"):
+    """Build a TaskMeta for testing."""
+    return TaskMeta(
+        task_id=task_id, agent="coder",
+        task_class=task_class, risk=risk,
+        repo_path="/tmp/repo", cwd="/tmp/repo",
+        summary=summary,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -256,17 +290,13 @@ def patched_routing(tmp_path, monkeypatch):
     monkeypatch.setattr("router.state_store.WAL_PATH", state_dir / "wal.jsonl")
 
     # Reset singletons
-    from router.state_store import reset_state_store
     reset_state_store()
     reset_breaker()
     reset_notifier()
 
-    store = StateStore(
-        manual_path=state_dir / "manual.json",
-        auto_path=state_dir / "auto.json",
-        history_path=state_dir / "history.json",
-        wal_path=state_dir / "wal.jsonl",
-    )
+    # Force-create singleton with patched paths
+    from router.state_store import get_state_store
+    store = get_state_store()
 
     return {
         "runtime_dir": runtime_dir,
