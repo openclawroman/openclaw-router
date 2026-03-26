@@ -17,6 +17,8 @@ class TaskClass(str, Enum):
     UI_FROM_SCREENSHOT = "ui_from_screenshot"
     MULTIMODAL_CODE_TASK = "multimodal_code_task"
     SWARM_CODE_TASK = "swarm_code_task"
+    PLANNER = "planner"
+    FINAL_REVIEW = "final_review"
 
 
 class TaskModality(str, Enum):

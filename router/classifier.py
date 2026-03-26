@@ -13,7 +13,17 @@ from .models import (
 )
 
 
+# MiMo-as-brain design philosophy:
+# The classifier uses MiMo for routing decisions (it runs locally, cheap).
+# MiMo is the brain — it classifies and routes, but never executes tasks.
+# It decides WHERE work goes, not HOW work is done.
+
+# Order matters: more specific patterns must come before generic ones.
+# PLANNER before IMPLEMENTATION (so "plan to implement" matches planner, not implementation).
+# FINAL_REVIEW before CODE_REVIEW (so "review the generated code" matches final_review, not code_review).
 TASK_CLASS_KEYWORDS = [
+    ("planner",              ["plan", "think about", "how should we", "break down"]),
+    ("final_review",         ["review the generated code", "check the implementation", "validate", "verify the result"]),
     ("test_generation",      ["add test", "add tests", "write test", "write tests", "generate test", "test for"]),
     ("bugfix",               ["fix", "fixing", "bug", "repair", "hotfix"]),
     ("refactor",             ["refactor", "restructure", "reorganize", "clean up"]),
@@ -88,7 +98,7 @@ def _extract_repo_path(text: str) -> Optional[str]:
 
 def _generate_summary(text: str) -> str:
     """Generate a short summary from task text."""
-    text = re.sub(r'^(implement|build|add|create|fix|refactor|debug|review)\s+', '', text.lower())
+    text = re.sub(r'^(plan|design|architect|implement|build|add|create|fix|refactor|debug|review|validate|verify)\s+', '', text.lower())
     text = re.sub(r'\s+', ' ', text).strip()
     return text[:120]
 
@@ -115,7 +125,7 @@ class Classifier:
             task_class=task_class,
             risk=detect_risk(description),
             modality=detect_modality(description),
-            requires_repo_write=task_class not in {TaskClass.CODE_REVIEW, TaskClass.DEBUG},
+            requires_repo_write=task_class not in {TaskClass.CODE_REVIEW, TaskClass.DEBUG, TaskClass.PLANNER, TaskClass.FINAL_REVIEW},
             requires_multimodal=task_class in {
                 TaskClass.UI_FROM_SCREENSHOT,
                 TaskClass.MULTIMODAL_CODE_TASK,
