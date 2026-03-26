@@ -9,7 +9,7 @@ import re
 from typing import Optional
 
 from .models import (
-    TaskMeta, TaskClass, TaskRisk, TaskModality,
+    TaskMeta, TaskClass, TaskRisk, TaskModality, TaskPhase,
 )
 
 
@@ -96,6 +96,32 @@ def _extract_repo_path(text: str) -> Optional[str]:
     return None
 
 
+def detect_phase(
+    description: str,
+    task_class: TaskClass,
+    modality: TaskModality,
+    has_screenshots: bool,
+    requires_multimodal: bool,
+) -> TaskPhase:
+    """Detect task phase for model selection."""
+    # VISUAL: multimodal or screenshot tasks
+    if has_screenshots or requires_multimodal or modality == TaskModality.MIXED:
+        return TaskPhase.VISUAL
+
+    # DECIDE: planning, architecture, triage, final review
+    decide_classes = {TaskClass.PLANNER, TaskClass.FINAL_REVIEW, TaskClass.REPO_ARCHITECTURE_CHANGE, TaskClass.CODE_REVIEW}
+    if task_class in decide_classes:
+        return TaskPhase.DECIDE
+
+    text_lower = description.lower()
+    decide_keywords = ["plan", "architect", "triage", "final review"]
+    for kw in decide_keywords:
+        if kw in text_lower:
+            return TaskPhase.DECIDE
+
+    return TaskPhase.EXECUTE
+
+
 def _generate_summary(text: str) -> str:
     """Generate a short summary from task text."""
     text = re.sub(r'^(plan|design|architect|implement|build|add|create|fix|refactor|debug|review|validate|verify)\s+', '', text.lower())
@@ -118,23 +144,28 @@ class Classifier:
         """
         repo_path = _extract_repo_path(description)
         task_class = detect_task_class(description)
+        modality = detect_modality(description)
+        has_screenshots = "screenshot" in description.lower()
+        requires_multimodal = task_class in {
+            TaskClass.UI_FROM_SCREENSHOT,
+            TaskClass.MULTIMODAL_CODE_TASK,
+        }
+        phase = detect_phase(description, task_class, modality, has_screenshots, requires_multimodal)
 
         return TaskMeta(
             task_id=str(uuid.uuid4())[:8],
             agent="coder",
             task_class=task_class,
             risk=detect_risk(description),
-            modality=detect_modality(description),
+            modality=modality,
             requires_repo_write=task_class not in {TaskClass.CODE_REVIEW, TaskClass.DEBUG, TaskClass.PLANNER, TaskClass.FINAL_REVIEW},
-            requires_multimodal=task_class in {
-                TaskClass.UI_FROM_SCREENSHOT,
-                TaskClass.MULTIMODAL_CODE_TASK,
-            },
-            has_screenshots="screenshot" in description.lower(),
+            requires_multimodal=requires_multimodal,
+            has_screenshots=has_screenshots,
             swarm="swarm" in description.lower(),
             repo_path=repo_path or "",
             cwd=repo_path or "",
             summary=_generate_summary(description),
+            phase=phase,
         )
 
     def classify_from_dict(self, raw: dict) -> TaskMeta:
@@ -178,6 +209,8 @@ class Classifier:
             meta.swarm = bool(raw["swarm"])
         if "modality" in raw:
             meta.modality = TaskModality(raw["modality"])
+        if "phase" in raw:
+            meta.phase = TaskPhase(raw["phase"])
 
         return meta
 

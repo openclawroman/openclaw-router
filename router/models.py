@@ -29,6 +29,13 @@ class TaskModality(str, Enum):
     MIXED = "mixed"
 
 
+class TaskPhase(str, Enum):
+    """What the task is doing — used for model selection."""
+    EXECUTE = "execute"       # Writing code, fixing bugs, implementing
+    DECIDE = "decide"         # Planning, architecture, triage, final review
+    VISUAL = "visual"         # Screenshots, multimodal, UI from image
+
+
 class TaskRisk(str, Enum):
     """Risk level of the task."""
     LOW = "low"
@@ -110,6 +117,7 @@ class TaskMeta:
     repo_path: str = ""
     cwd: str = ""
     summary: str = ""
+    phase: TaskPhase = field(default_factory=lambda: TaskPhase.EXECUTE)
 
 
 @dataclass
