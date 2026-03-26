@@ -15,6 +15,22 @@ from router.models import (
 )
 from router.state_store import StateStore
 from router.policy import route_task, build_chain, resolve_state, reset_breaker, reset_notifier
+import router.config_loader as _cfg_mod
+
+
+@pytest.fixture(autouse=False)
+def restore_config():
+    """Restore original config after each test (reload_config pollutes singleton)."""
+    with _cfg_mod._config_lock:
+        snap = _cfg_mod._config_snapshot
+        raw = getattr(_cfg_mod, '_config_raw', None)
+        path = getattr(_cfg_mod, '_active_config_path', None)
+    yield
+    with _cfg_mod._config_lock:
+        _cfg_mod._config_snapshot = snap
+        _cfg_mod._config_raw = raw
+        if path is not None:
+            _cfg_mod._active_config_path = path
 
 
 # ---------------------------------------------------------------------------
