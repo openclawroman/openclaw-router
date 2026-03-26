@@ -117,10 +117,25 @@ from router import (
 
 
 def parse_task_meta(data: dict) -> TaskMeta:
-    """Parse task_meta dict into TaskMeta."""
+    """Parse task_meta dict into TaskMeta, with full envelope awareness."""
     meta = data.get("task_meta", data)
+
+    # Extract cwd from multiple possible sources (priority: cwd field > task_meta.cwd > context.working_directory)
+    cwd = (
+        data.get("cwd")
+        or meta.get("cwd")
+        or data.get("context", {}).get("working_directory")
+        or data.get("context", {}).get("cwd")
+        or ""
+    )
+
+    # Extract summary from prompt if not in meta
+    summary = meta.get("summary", "")
+    if not summary and "prompt" in data:
+        summary = data["prompt"][:500]
+
     return TaskMeta(
-        task_id=str(meta.get("task_id", "")),
+        task_id=str(data.get("task_id") or meta.get("task_id", "")),
         agent=meta.get("agent", "coder"),
         task_class=TaskClass(meta.get("task_class", "implementation")),
         risk=TaskRisk(meta.get("risk", "medium")),
@@ -130,14 +145,15 @@ def parse_task_meta(data: dict) -> TaskMeta:
         has_screenshots=bool(meta.get("has_screenshots", False)),
         swarm=bool(meta.get("swarm", False)),
         repo_path=meta.get("repo_path", ""),
-        cwd=meta.get("cwd", ""),
-        summary=meta.get("summary", ""),
+        cwd=cwd,
+        summary=summary,
     )
 
 
-def result_to_dict(result) -> dict:
+def result_to_dict(result, protocol_version=1) -> dict:
     """Convert ExecutorResult to output dict."""
     return {
+        "protocol_version": protocol_version,
         "task_id": result.task_id,
         "tool": result.tool,
         "backend": result.backend,
@@ -158,35 +174,50 @@ def result_to_dict(result) -> dict:
 def main():
     """Main entrypoint."""
     try:
-        # Read stdin JSON
         input_data = json.load(sys.stdin)
         task = parse_task_meta(input_data)
+
+        # Extract scope metadata (for logging/context)
+        scope = input_data.get("scope", {})
+        if scope:
+            os.environ["OPENCLAW_SCOPE_ID"] = str(scope.get("scope_id", ""))
+            os.environ["OPENCLAW_THREAD_ID"] = str(scope.get("thread_id", "") or "")
+            os.environ["OPENCLAW_SESSION_ID"] = str(scope.get("session_id", "") or "")
+
+        # Extract context fields
+        context = input_data.get("context", {})
+        if context:
+            os.environ["OPENCLAW_GIT_BRANCH"] = str(context.get("git_branch", "") or "")
+
+        # Store protocol version
+        protocol_version = input_data.get("protocol_version", 1)
 
         # Merge prompt into summary if not set
         if not task.summary and "prompt" in input_data:
             task.summary = input_data["prompt"][:500]
 
-        # Route the task (returns RouteDecision, ExecutorResult)
+        # Route the task
         start_time = time.time()
         decision, result = route_task(task)
         total_latency_ms = int((time.time() - start_time) * 1000)
 
-        # Log the decision
+        # Log the decision with full envelope context
         logger = RoutingLogger()
         logger.log(task, decision, result, latency_ms=total_latency_ms)
 
         # Output ExecutorResult
-        output = result_to_dict(result)
+        output = result_to_dict(result, protocol_version=protocol_version)
+
         print(json.dumps(output, indent=2))
 
     except json.JSONDecodeError as e:
-        print(json.dumps({"error": f"Invalid JSON input: {e}"}), file=sys.stderr)
+        print(json.dumps({"error": f"Invalid JSON input: {e}", "protocol_version": 1}), file=sys.stderr)
         sys.exit(1)
     except RouterError as e:
-        print(json.dumps({"error": str(e), "type": type(e).__name__}), file=sys.stderr)
+        print(json.dumps({"error": str(e), "type": type(e).__name__, "protocol_version": 1}), file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(json.dumps({"error": f"Unexpected error: {e}"}), file=sys.stderr)
+        print(json.dumps({"error": f"Unexpected error: {e}", "protocol_version": 1}), file=sys.stderr)
         sys.exit(1)
 
 
