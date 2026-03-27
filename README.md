@@ -390,12 +390,15 @@ echo '{
     "has_screenshots": false,
     "swarm": false,
     "repo_path": "/tmp",
+    "cwd": "/tmp",
     "summary": "say hello"
   }
 }' | python3 bin/ai-code-runner
 ```
 
 The output is a JSON object (`ExecutorResult`) on stdout. The `RouteDecision` (routing rationale, executor chain, state) is logged to `runtime/routing.jsonl` for audit/traceability.
+
+> **⚠️ `cwd` is required:** Codex exec (`codex exec [prompt]`) needs a working directory. If `cwd` is not set, codex fails with `toolchain_error`. Always set `cwd` in `task_meta` (or `repo_path` as fallback).
 
 ### Run Tests
 
