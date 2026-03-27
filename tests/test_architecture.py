@@ -159,9 +159,6 @@ class TestConfigValid(unittest.TestCase):
     def test_has_version(self):
         self.assertIn("version", self.config)
 
-    def test_has_routing(self):
-        self.assertIn("routing", self.config)
-
     def test_has_tools(self):
         self.assertIn("tools", self.config)
 
@@ -173,18 +170,6 @@ class TestConfigValid(unittest.TestCase):
 
     def test_has_state(self):
         self.assertIn("state", self.config)
-
-    def test_routing_has_normal(self):
-        self.assertIn("normal", self.config["routing"])
-
-    def test_routing_has_last10(self):
-        self.assertIn("last10", self.config["routing"])
-
-    def test_normal_chain_is_list(self):
-        self.assertIsInstance(self.config["routing"]["normal"]["chain"], list)
-
-    def test_last10_chain_is_list(self):
-        self.assertIsInstance(self.config["routing"]["last10"]["chain"], list)
 
 
 if __name__ == "__main__":

@@ -119,11 +119,11 @@ class TestListFreezing:
     def test_lists_are_frozen(self):
         """Lists in config should be frozen as tuples."""
         snapshot = get_config_snapshot()
-        chain = snapshot["routing"]["openai_primary"]["chain"]
+        errors = snapshot["retry"]["eligible_errors"]
         # Should be a tuple, not a list
-        assert isinstance(chain, tuple)
+        assert isinstance(errors, tuple)
         with pytest.raises(TypeError):
-            chain[0] = "CORRUPTED"
+            errors[0] = "CORRUPTED"
 
     def test_nested_lists_frozen(self):
         """Nested lists in config should also be frozen."""

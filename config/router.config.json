@@ -7,7 +7,7 @@
       "cost_usd": 250
     },
     "thresholds": {
-      "warning": 0.50,
+      "warning": 0.5,
       "critical": 0.75,
       "exhausted": 0.95
     }
@@ -56,108 +56,6 @@
     "claude_code": {
       "provider": "anthropic",
       "timeout_s": 300
-    }
-  },
-  "routing": {
-    "openai_primary": {
-      "chain": [
-        {
-          "tool": "codex_cli",
-          "backend": "openai_native",
-          "model_profile": "auto"
-        },
-        {
-          "tool": "claude_code",
-          "backend": "anthropic",
-          "model_profile": "claude_primary"
-        },
-        {
-          "tool": "codex_cli",
-          "backend": "openrouter",
-          "model_profile": "openrouter_dynamic"
-        }
-      ],
-      "_comment": "Reference only \u2014 chains are built programmatically by policy.py"
-    },
-    "openai_conservation": {
-      "chain": [
-        {
-          "tool": "codex_cli",
-          "backend": "openai_native",
-          "model_profile": "auto"
-        },
-        {
-          "tool": "codex_cli",
-          "backend": "openrouter",
-          "model_profile": "openrouter_minimax"
-        },
-        {
-          "tool": "claude_code",
-          "backend": "anthropic",
-          "model_profile": "claude_primary"
-        }
-      ],
-      "_comment": "Reference only \u2014 chains are built programmatically by policy.py"
-    },
-    "claude_backup": {
-      "chain": [
-        {
-          "tool": "claude_code",
-          "backend": "anthropic",
-          "model_profile": "auto"
-        },
-        {
-          "tool": "codex_cli",
-          "backend": "openrouter",
-          "model_profile": "openrouter_dynamic"
-        }
-      ],
-      "_comment": "Reference only \u2014 chains are built programmatically by policy.py"
-    },
-    "openrouter_fallback": {
-      "chain": [
-        {
-          "tool": "codex_cli",
-          "backend": "openrouter",
-          "model_profile": "openrouter_minimax"
-        }
-      ],
-      "_comment": "Reference only \u2014 chains are built programmatically by policy.py"
-    },
-    "normal": {
-      "chain": [
-        {
-          "tool": "codex_cli",
-          "backend": "openai_native",
-          "model_profile": "codex_primary"
-        },
-        {
-          "tool": "claude_code",
-          "backend": "anthropic",
-          "model_profile": "claude_primary"
-        },
-        {
-          "tool": "codex_cli",
-          "backend": "openrouter",
-          "model_profile": "openrouter_dynamic"
-        }
-      ],
-      "_comment": "Reference only \u2014 chains are built programmatically by policy.py"
-    },
-    "last10": {
-      "chain": [
-        {
-          "tool": "claude_code",
-          "backend": "anthropic",
-          "model_profile": "claude_primary"
-        },
-        {
-          "tool": "codex_cli",
-          "backend": "openrouter",
-          "model_profile": "openrouter_dynamic"
-        }
-      ],
-      "_comment": "Reference only \u2014 chains are built programmatically by policy.py"
     }
   },
   "openrouter_dynamic_rules": {

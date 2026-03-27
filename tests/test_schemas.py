@@ -146,7 +146,7 @@ class TestConfigLoading:
         assert self.config["version"] == 1
 
     def test_has_required_top_level_keys(self):
-        required = {"version", "state", "openclaw", "tools", "routing", "openrouter_dynamic_rules", "retry", "logging"}
+        required = {"version", "state", "openclaw", "tools", "openrouter_dynamic_rules", "retry", "logging"}
         assert required.issubset(set(self.config.keys()))
 
     def test_state_config(self):
@@ -154,18 +154,6 @@ class TestConfigLoading:
         assert state["default"] == "openai_primary"
         assert "manual_state_file" in state
         assert "auto_state_file" in state
-
-    def test_routing_chains(self):
-        normal = self.config["routing"]["normal"]["chain"]
-        assert len(normal) == 3
-        assert normal[0]["tool"] == "codex_cli"
-        assert normal[0]["backend"] == "openai_native"
-        assert normal[1]["tool"] == "claude_code"
-        assert normal[2]["tool"] == "codex_cli"
-
-        last10 = self.config["routing"]["last10"]["chain"]
-        assert len(last10) == 2
-        assert last10[0]["tool"] == "claude_code"
 
     def test_openrouter_dynamic_rules(self):
         rules = self.config["openrouter_dynamic_rules"]
