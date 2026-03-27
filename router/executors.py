@@ -147,7 +147,7 @@ def run_codex(meta: TaskMeta, model: Optional[str] = None) -> ExecutorResult:
     task_id = meta.task_id or ""
     cwd = meta.cwd or meta.repo_path
 
-    cmd = ["codex"]
+    cmd = ["codex", "exec", "--dangerously-bypass-approvals-and-sandbox"]
     if model:
         cmd.extend(["--model", model])
     cmd.append(meta.summary or task_id)
