@@ -7,6 +7,7 @@ Usage:
 
 Input (stdin JSON):
 {
+    "protocol_version": 1,
     "task_meta": {
         "task_id": "task_abc123",
         "agent": "coder",
@@ -22,12 +23,32 @@ Input (stdin JSON):
         "summary": "Implement token refresh flow"
     },
     "prompt": "Implement token refresh flow...",
-    "attachments": [],
-    "context": {"branch": "feature/auth", "target_files": ["src/auth.py"]}
+    "attachments": [
+        {"path": "/tmp/screenshot.png", "type": "screenshot"}
+    ],
+    "scope": {
+        "scope_id": "scope_123",
+        "thread_id": "thread_456",
+        "session_id": "sess_789"
+    },
+    "context": {
+        "branch": "feature/auth",
+        "cwd": "/path/to/repo",
+        "git_branch": "feature/auth",
+        "language": "python",
+        "task_type": "implementation",
+        "model_preferences": {"primary": "gpt-4", "fallback": "claude"},
+        "target_files": ["src/auth.py"]
+    },
+    "continuity": {
+        "previous_task_id": "task_prev",
+        "conversation_turns": 3
+    }
 }
 
 Output (stdout JSON - ExecutorResult):
 {
+    "protocol_version": 1,
     "task_id": "task_abc123",
     "tool": "codex_cli",
     "backend": "openai_native",
@@ -43,6 +64,16 @@ Output (stdout JSON - ExecutorResult):
     "stderr_ref": null,
     "final_summary": "Token refresh flow implemented"
 }
+
+Env vars set for executors:
+    OPENCLAW_SCOPE_ID, OPENCLAW_THREAD_ID, OPENCLAW_SESSION_ID
+    OPENCLAW_GIT_BRANCH, OPENCLAW_WORKING_DIR
+    OPENCLAW_PROTOCOL_VERSION
+    OPENCLAW_ATTACHMENTS (colon-separated file paths)
+    OPENCLAW_MODEL_PREFS (JSON string)
+    OPENCLAW_LANGUAGE
+    OPENCLAW_TASK_TYPE
+    OPENCLAW_CONTINUITY (JSON string)
 """
 
 import os
@@ -192,9 +223,28 @@ def main():
             os.environ["OPENCLAW_GIT_BRANCH"] = str(context["git_branch"])
         if context.get("working_directory"):
             os.environ["OPENCLAW_WORKING_DIR"] = str(context["working_directory"])
+        if context.get("model_preferences"):
+            os.environ["OPENCLAW_MODEL_PREFS"] = json.dumps(context["model_preferences"])
+        if context.get("language"):
+            os.environ["OPENCLAW_LANGUAGE"] = str(context["language"])
+        if context.get("task_type"):
+            os.environ["OPENCLAW_TASK_TYPE"] = str(context["task_type"])
 
         # Store protocol version
         protocol_version = input_data.get("protocol_version", 1)
+        os.environ["OPENCLAW_PROTOCOL_VERSION"] = str(protocol_version)
+
+        # Pass attachments metadata to executors
+        attachments = input_data.get("attachments", [])
+        if attachments:
+            paths = [a.get("path") for a in attachments if a.get("path")]
+            if paths:
+                os.environ["OPENCLAW_ATTACHMENTS"] = ":".join(paths)
+
+        # Pass continuity metadata to executors
+        continuity = input_data.get("continuity", {})
+        if continuity:
+            os.environ["OPENCLAW_CONTINUITY"] = json.dumps(continuity)
 
         # Merge prompt into summary if not set
         if not task.summary and "prompt" in input_data:
