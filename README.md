@@ -195,7 +195,7 @@ Sent to `ai-code-runner` via `stdin` JSON. Describes what needs to be done.
 
 ### RouteDecision (Routing Output)
 
-Returned after routing. Describes the executor chain and routing rationale.
+Generated after routing and logged to `runtime/routing.jsonl`. Describes the executor chain and routing rationale. **Not returned on stdout** — only available in the JSONL log file.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -395,7 +395,7 @@ echo '{
 }' | python3 bin/ai-code-runner
 ```
 
-The output is a JSON object containing the `RouteDecision` and `ExecutorResult`.
+The output is a JSON object (`ExecutorResult`) on stdout. The `RouteDecision` (routing rationale, executor chain, state) is logged to `runtime/routing.jsonl` for audit/traceability.
 
 ### Run Tests
 
