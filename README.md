@@ -1,8 +1,8 @@
 # ai-code-runner
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-1784%20passing-brightgreen.svg)](#testing)
-[![Coverage](https://img.shields.io/badge/coverage-95.73%25-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-1916%20passing-brightgreen.svg)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-95.35%25-brightgreen.svg)](#testing)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 
 **An external routing layer for OpenClaw coding tasks.** Classifies tasks, selects the right executor (Codex CLI, Claude Code, or OpenRouter), handles fallback, and logs everything.
@@ -486,6 +486,13 @@ Valid states: `openai_primary`, `openai_conservation`, `claude_backup`, `openrou
 |----------|-------------|
 | [Architecture Spec](docs/architecture.md) | Full dual-plane design, state machine details, routing contract, and data flow |
 | [Operational Runbooks](docs/runbooks.md) | Installation, state override, provider setup, monitoring, dry runs |
+
+---
+
+## License
+
+MIT
+d) | Installation, state override, provider setup, monitoring, dry runs |
 
 ---
 
