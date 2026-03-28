@@ -84,6 +84,7 @@ def _make_result(
     tool: str,
     backend: str,
     model_profile: str,
+    model_name: Optional[str] = None,
     success: bool = True,
     normalized_error: Optional[str] = None,
     exit_code: Optional[int] = None,
@@ -101,6 +102,7 @@ def _make_result(
         tool=tool,
         backend=backend,
         model_profile=model_profile,
+        model_name=model_name,
         success=success,
         normalized_error=normalized_error,
         exit_code=exit_code,
@@ -167,6 +169,7 @@ def run_codex(meta: TaskMeta, model: Optional[str] = None) -> ExecutorResult:
             tool="codex_cli",
             backend="openai_native",
             model_profile="codex_primary",
+            model_name=model,
             success=True,
             exit_code=0,
             latency_ms=latency_ms,
@@ -201,6 +204,7 @@ def run_codex_openrouter_minimax(meta: TaskMeta) -> ExecutorResult:
             tool="codex_cli",
             backend="openrouter",
             model_profile="openrouter_minimax",
+            model_name=get_model("minimax"),
             success=False,
             normalized_error="auth_error",
             exit_code=-1,
@@ -214,6 +218,7 @@ def run_codex_openrouter_minimax(meta: TaskMeta) -> ExecutorResult:
         tool="codex_cli",
         backend="openrouter",
         model_profile="openrouter_minimax",
+        model_name=get_model("minimax"),
     )
 
 
@@ -232,6 +237,7 @@ def run_codex_openrouter_kimi(meta: TaskMeta) -> ExecutorResult:
             tool="codex_cli",
             backend="openrouter",
             model_profile="openrouter_kimi",
+            model_name=get_model("kimi"),
             success=False,
             normalized_error="auth_error",
             exit_code=-1,
@@ -245,6 +251,7 @@ def run_codex_openrouter_kimi(meta: TaskMeta) -> ExecutorResult:
         tool="codex_cli",
         backend="openrouter",
         model_profile="openrouter_kimi",
+        model_name=get_model("kimi"),
     )
 
 
@@ -262,6 +269,7 @@ def _openrouter_request(
     tool: str,
     backend: str,
     model_profile: str,
+    model_name: Optional[str] = None,
 ) -> ExecutorResult:
     """Make an OpenRouter API call and return ExecutorResult."""
     task_id = meta.task_id or ""
@@ -304,6 +312,7 @@ def _openrouter_request(
                 tool=tool,
                 backend=backend,
                 model_profile=model_profile,
+                model_name=model_name or model,
                 success=True,
                 exit_code=0,
                 latency_ms=latency_ms,
@@ -336,6 +345,7 @@ def _openrouter_request(
             tool=tool,
             backend=backend,
             model_profile=model_profile,
+            model_name=model_name or model,
             success=False,
             normalized_error=norm_err,
             exit_code=e.code,
@@ -358,6 +368,7 @@ def _openrouter_request(
             tool=tool,
             backend=backend,
             model_profile=model_profile,
+            model_name=model_name or model,
             success=False,
             normalized_error=normalize_error(err_msg),
             exit_code=-1,
@@ -401,6 +412,7 @@ def run_claude(meta: TaskMeta, *, model: Optional[str] = None) -> ExecutorResult
             tool="claude_code",
             backend="anthropic",
             model_profile="claude_primary",
+            model_name=model,
             success=True,
             exit_code=0,
             latency_ms=latency_ms,
@@ -442,4 +454,5 @@ def run_openrouter(
         tool="openrouter",
         backend="openrouter",
         model_profile=profile,
+        model_name=model,
     )

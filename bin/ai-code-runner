@@ -189,6 +189,7 @@ def result_to_dict(result, protocol_version=1) -> dict:
         "tool": result.tool,
         "backend": result.backend,
         "model_profile": result.model_profile,
+        "model_name": result.model_name,
         "success": result.success,
         "normalized_error": result.normalized_error,
         "exit_code": result.exit_code,

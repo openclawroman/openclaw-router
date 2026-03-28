@@ -84,7 +84,7 @@ class TestExecutorResultContract:
     """Validate ExecutorResult has all required fields with correct types and defaults."""
 
     def test_has_all_required_fields(self):
-        """task_id, tool, backend, model_profile, success(bool), normalized_error(str|None),
+        """task_id, tool, backend, model_profile, model_name, success(bool), normalized_error(str|None),
         exit_code(int|None), latency_ms(int), request_id(str|None), cost_estimate_usd(float|None),
         artifacts(list), stdout_ref(str|None), stderr_ref(str|None), final_summary(str|None)."""
         er = ExecutorResult()
@@ -92,6 +92,7 @@ class TestExecutorResultContract:
         assert isinstance(er.tool, str)
         assert isinstance(er.backend, str)
         assert isinstance(er.model_profile, str)
+        assert er.model_name is None or isinstance(er.model_name, str)
         assert isinstance(er.success, bool)
         assert er.normalized_error is None or isinstance(er.normalized_error, str)
         assert er.exit_code is None or isinstance(er.exit_code, int)

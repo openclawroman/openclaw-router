@@ -117,7 +117,7 @@ class TestWithResult:
         logger.log(_task(), _decision(), result=_result())
         entry = json.loads(log.read_text().strip())
         res = entry["result"]
-        for key in ("tool", "backend", "model_profile", "success", "latency_ms",
+        for key in ("tool", "backend", "model_profile", "model_name", "success", "latency_ms",
                      "request_id", "cost_estimate_usd", "artifacts", "final_summary"):
             assert key in res, f"missing result field: {key}"
 

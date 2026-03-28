@@ -66,6 +66,7 @@ def sample_result():
         tool="codex_cli",
         backend="openai_native",
         model_profile="codex_primary",
+        model_name="gpt-5.4",
         success=True,
         normalized_error=None,
         exit_code=0,
@@ -133,6 +134,7 @@ class TestLogEntryFields:
         assert entry["result"]["tool"] == "codex_cli"
         assert entry["result"]["backend"] == "openai_native"
         assert entry["result"]["model_profile"] == "codex_primary"
+        assert entry["result"]["model_name"] == "gpt-5.4"
         assert entry["result"]["success"] is True
         assert entry["result"]["latency_ms"] == 500
         assert entry["result"]["cost_estimate_usd"] == 0.0

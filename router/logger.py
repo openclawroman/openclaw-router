@@ -46,6 +46,7 @@ class RoutingLogger:
                 "tool": result.tool,
                 "backend": result.backend,
                 "model_profile": result.model_profile,
+                "model_name": result.model_name,
                 "success": result.success,
                 "latency_ms": result.latency_ms,
             }

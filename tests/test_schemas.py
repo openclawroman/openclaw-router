@@ -115,7 +115,7 @@ class TestExecutorResult:
         assert not (set(vars(ExecutorResult()).keys()) & forbidden)
 
     def test_spec_field_names(self):
-        expected = {"task_id", "tool", "backend", "model_profile", "success",
+        expected = {"task_id", "tool", "backend", "model_profile", "model_name", "success",
                     "normalized_error", "exit_code", "latency_ms", "request_id",
                     "cost_estimate_usd", "artifacts", "stdout_ref", "stderr_ref",
                     "final_summary", "trace_id", "rate_limit_info",

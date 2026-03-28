@@ -154,6 +154,7 @@ class ExecutorResult:
     tool: str = ""
     backend: str = ""
     model_profile: str = ""
+    model_name: Optional[str] = None
     success: bool = True
     normalized_error: Optional[str] = None
     exit_code: Optional[int] = None
