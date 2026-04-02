@@ -116,6 +116,20 @@ def _make_result(
     )
 
 
+
+
+def _build_prompt(meta: TaskMeta) -> str:
+    """Build the final prompt, prepending continuity_summary if present."""
+    base = meta.summary or meta.task_id
+    if meta.continuity_summary:
+        return (
+            f"[Continuity context from previous delegation]\n"
+            f"{meta.continuity_summary}\n\n"
+            f"--- Current task ---\n"
+            f"{base}"
+        )
+    return base
+
 def _run_subprocess(cmd: list, cwd: str, timeout: int = 300) -> tuple[int, str, str, bool]:
     """Run a subprocess, return (returncode, stdout, stderr, timed_out)."""
     try:
@@ -152,7 +166,7 @@ def run_codex(meta: TaskMeta, model: Optional[str] = None) -> ExecutorResult:
     cmd = ["codex", "exec", "--dangerously-bypass-approvals-and-sandbox"]
     if model:
         cmd.extend(["--model", model])
-    cmd.append(meta.summary or task_id)
+    cmd.append(_build_prompt(meta))
 
     start = time.time()
     returncode, stdout, stderr, timed_out = _run_subprocess(
@@ -279,7 +293,7 @@ def _openrouter_request(
 
     payload_dict = {
         "model": model,
-        "messages": [{"role": "user", "content": meta.summary or task_id}],
+        "messages": [{"role": "user", "content": _build_prompt(meta)}],
         "max_tokens": 4000
     }
     payload = json.dumps(payload_dict).encode('utf-8')
@@ -392,7 +406,7 @@ def run_claude(meta: TaskMeta, *, model: Optional[str] = None) -> ExecutorResult
     task_id = meta.task_id or ""
     cwd = meta.cwd or meta.repo_path
 
-    cmd = ["claude", "-p", meta.summary or task_id]
+    cmd = ["claude", "-p", _build_prompt(meta)]
     if model:
         cmd.extend(["--model", model])
 

@@ -178,6 +178,7 @@ def parse_task_meta(data: dict) -> TaskMeta:
         repo_path=meta.get("repo_path", ""),
         cwd=cwd,
         summary=summary,
+        continuity_summary=data.get("continuity_summary") or meta.get("continuity_summary", ""),
     )
 
 
@@ -246,6 +247,10 @@ def main():
         continuity = input_data.get("continuity", {})
         if continuity:
             os.environ["OPENCLAW_CONTINUITY"] = json.dumps(continuity)
+
+        # Read continuity_summary from top-level JSON if present
+        if "continuity_summary" in input_data:
+            task.continuity_summary = input_data["continuity_summary"]
 
         # Merge prompt into summary if not set
         if not task.summary and "prompt" in input_data:
