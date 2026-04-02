@@ -118,6 +118,7 @@ class TaskMeta:
     repo_path: str = ""
     cwd: str = ""
     summary: str = ""
+    continuity_summary: str = ""
 
     def inferred_phase(self) -> TaskPhase:
         """Infer phase from task_class if phase is still default EXECUTE."""
