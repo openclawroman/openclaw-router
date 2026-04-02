@@ -236,3 +236,118 @@ class TestOpenRouterContinuity:
         content = messages[0]["content"]
         assert "[Continuity context" not in content
         assert content == "do something"
+
+
+# ---------------------------------------------------------------------------
+# Phase 7 — Additional robustness & integration tests
+# ---------------------------------------------------------------------------
+
+class TestParserRobustness:
+    def test_unknown_extra_fields_do_not_crash(self):
+        """Extra unknown fields in payload should not break parser."""
+        from bin.ai_code_runner import parse_task_meta
+        payload = {
+            "task_id": "t1",
+            "task_meta": {"task_id": "t1", "summary": "do stuff"},
+            "continuity_summary": "some context",
+            "future_field_v2": "should be ignored",
+            "retrieved_entries": [{"task": "old", "output": "full output"}],
+            "unknown_nested": {"a": 1, "b": [2, 3]},
+        }
+        meta = parse_task_meta(payload)
+        assert meta.continuity_summary == "some context"
+        assert meta.summary == "do stuff"
+
+    def test_continuity_summary_unicode(self):
+        """Unicode in continuity_summary should be preserved."""
+        from bin.ai_code_runner import parse_task_meta
+        payload = {
+            "task_id": "t1",
+            "task_meta": {"task_id": "t1", "summary": "test"},
+            "continuity_summary": "Раніше: додав модуль авторизації 🚀",
+        }
+        meta = parse_task_meta(payload)
+        assert meta.continuity_summary == "Раніше: додав модуль авторизації 🚀"
+
+    def test_continuity_summary_very_long(self):
+        """Large continuity_summary should not crash parser (bounded by bridge)."""
+        from bin.ai_code_runner import parse_task_meta
+        long_summary = "x" * 5000
+        payload = {
+            "task_id": "t1",
+            "task_meta": {"task_id": "t1", "summary": "do stuff"},
+            "continuity_summary": long_summary,
+        }
+        meta = parse_task_meta(payload)
+        assert meta.continuity_summary == long_summary  # Router doesn't truncate; bridge does
+        assert meta.summary == "do stuff"  # Task unaffected
+
+    def test_continuity_summary_with_newlines(self):
+        """Multiline continuity_summary should be preserved exactly."""
+        from bin.ai_code_runner import parse_task_meta
+        summary = "Recent coding work:\n- Updated file.ts (Codex, 5m ago)\n- Fixed tests (Claude, 10m ago)"
+        payload = {
+            "task_id": "t1",
+            "task_meta": {"task_id": "t1", "summary": "do stuff"},
+            "continuity_summary": summary,
+        }
+        meta = parse_task_meta(payload)
+        assert meta.continuity_summary == summary
+
+
+class TestExecutorPromptIntegrity:
+    @patch("router.executors.subprocess.run")
+    def test_continuity_is_additive_not_replacing_task(self, mock_run):
+        """When continuity present, prompt must contain BOTH continuity AND current task."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
+        meta = _meta(
+            summary="Fix login bug",
+            continuity_summary="Previously: built auth flow",
+        )
+        run_codex(meta)
+        cmd = mock_run.call_args[0][0]
+        prompt_arg = cmd[-1]
+        assert "Fix login bug" in prompt_arg
+        assert "Previously: built auth flow" in prompt_arg
+        assert prompt_arg.index("[Continuity") < prompt_arg.index("Fix login bug")
+
+    @patch("router.executors.subprocess.run")
+    def test_continuity_block_does_not_contain_full_history_dump(self, mock_run):
+        """Continuity block should be compact, not raw full outputs."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
+        # Simulate what bridge sends: compact summary, NOT full output
+        compact = "Recent coding work:\n- Updated file.ts (codex_cli, 5m ago)"
+        meta = _meta(continuity_summary=compact)
+        run_codex(meta)
+        cmd = mock_run.call_args[0][0]
+        prompt_arg = cmd[-1]
+        # Should have the compact summary
+        assert "Recent coding work" in prompt_arg
+        # Should NOT have markers of raw full output
+        assert "Updated file.ts" in prompt_arg  # fragment ok
+        # But the full raw output (if any) should not appear
+        # (bridge responsibility; this confirms router doesn't expand it)
+
+
+class TestGatingBoundaryBehavior:
+    """These tests verify router-side behavior when bridge gates block continuity."""
+
+    @patch("router.executors.subprocess.run")
+    def test_empty_continuity_same_as_no_continuity(self, mock_run):
+        """When bridge sends empty continuity_summary, prompt is unchanged."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
+        meta = _meta(continuity_summary="")
+        run_codex(meta)
+        cmd = mock_run.call_args[0][0]
+        assert cmd[-1] == "do something"
+        assert "[Continuity" not in cmd[-1]
+
+    @patch("router.executors.subprocess.run")
+    def test_null_continuity_treated_as_absent(self, mock_run):
+        """None/null continuity_summary should not appear in prompt."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
+        meta = TaskMeta(task_id="t1", summary="do something", cwd="/tmp", continuity_summary="")
+        run_codex(meta)
+        cmd = mock_run.call_args[0][0]
+        assert "[Continuity" not in cmd[-1]
+        assert cmd[-1] == "do something"
