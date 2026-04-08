@@ -95,7 +95,7 @@ for i, arg in enumerate(sys.argv):
 
 if config_path:
     from router.config_loader import reload_config
-    reload_config(config_path)
+    reload_config(Path(config_path).expanduser().resolve())
 
 # Health check mode
 if "--health" in sys.argv:
@@ -147,18 +147,37 @@ from router import (
 )
 
 
+def resolve_working_directory(data: dict, meta: dict) -> tuple[str, str, bool]:
+    candidates = [
+        ("cwd", data.get("cwd")),
+        ("task_meta.cwd", meta.get("cwd")),
+        ("context.working_directory", data.get("context", {}).get("working_directory")),
+        ("context.cwd", data.get("context", {}).get("cwd")),
+        ("repo_path", meta.get("repo_path") or data.get("repo_path")),
+    ]
+    first_candidate = ("", "")
+    for source, value in candidates:
+        if not value:
+            continue
+        normalized = str(Path(str(value)).expanduser().resolve())
+        if not first_candidate[0]:
+            first_candidate = (normalized, source)
+        if os.path.isdir(normalized):
+            return normalized, source, True
+    if first_candidate[0]:
+        return first_candidate[0], first_candidate[1], False
+    return "", "", False
+
+
 def parse_task_meta(data: dict) -> TaskMeta:
     """Parse task_meta dict into TaskMeta, with full envelope awareness."""
     meta = data.get("task_meta", data)
-
-    # Extract cwd from multiple possible sources (priority: cwd field > task_meta.cwd > context.working_directory)
-    cwd = (
-        data.get("cwd")
-        or meta.get("cwd")
-        or data.get("context", {}).get("working_directory")
-        or data.get("context", {}).get("cwd")
-        or ""
-    )
+    scope = data.get("scope", {})
+    trace = data.get("trace", {})
+    cwd, cwd_source, cwd_exists = resolve_working_directory(data, meta)
+    repo_path = meta.get("repo_path", "")
+    if repo_path:
+        repo_path = str(Path(str(repo_path)).expanduser().resolve())
 
     # Extract summary from prompt if not in meta
     summary = meta.get("summary", "")
@@ -175,10 +194,17 @@ def parse_task_meta(data: dict) -> TaskMeta:
         requires_multimodal=bool(meta.get("requires_multimodal", False)),
         has_screenshots=bool(meta.get("has_screenshots", False)),
         swarm=bool(meta.get("swarm", False)),
-        repo_path=meta.get("repo_path", ""),
+        repo_path=repo_path,
         cwd=cwd,
         summary=summary,
         continuity_summary=data.get("continuity_summary") or meta.get("continuity_summary", ""),
+        bridge_request_id=str(trace.get("bridge_request_id", "") or ""),
+        prompt_sha256=str(trace.get("prompt_sha256", "") or ""),
+        scope_id=str(scope.get("scope_id", "") or ""),
+        thread_id=str(scope.get("thread_id", "") or ""),
+        session_id=str(scope.get("session_id", "") or ""),
+        cwd_source=cwd_source,
+        cwd_exists=cwd_exists,
     )
 
 
@@ -201,6 +227,7 @@ def result_to_dict(result, protocol_version=1) -> dict:
         "stdout_ref": result.stdout_ref,
         "stderr_ref": result.stderr_ref,
         "final_summary": result.final_summary,
+        "trace_id": result.trace_id,
     }
 
 

@@ -30,10 +30,19 @@ class RoutingLogger:
         entry = {
             "ts": datetime.now(timezone.utc).isoformat(),
             "task_id": decision.task_id or task.task_id or "",
+            "trace_id": decision.trace_id or (result.trace_id if result else ""),
+            "bridge_request_id": task.bridge_request_id,
             "agent": task.agent,
             "task_class": task.task_class.value if task.task_class else "",
             "summary": task.summary,
             "state": decision.state,
+            "scope_id": task.scope_id,
+            "thread_id": task.thread_id,
+            "session_id": task.session_id,
+            "cwd": task.cwd,
+            "repo_path": task.repo_path,
+            "cwd_source": task.cwd_source,
+            "cwd_exists": task.cwd_exists,
             "chain": [{"tool": c.tool, "backend": c.backend, "model_profile": c.model_profile} for c in decision.chain],
             "reason": decision.reason,
             "attempted_fallback": decision.attempted_fallback,
@@ -66,6 +75,8 @@ class RoutingLogger:
                 entry["result"]["stderr_ref"] = result.stderr_ref
             if result.final_summary:
                 entry["result"]["final_summary"] = result.final_summary
+            if result.trace_id:
+                entry["result"]["trace_id"] = result.trace_id
 
         if latency_ms is not None:
             entry["latency_ms"] = latency_ms

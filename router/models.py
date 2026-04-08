@@ -119,6 +119,13 @@ class TaskMeta:
     cwd: str = ""
     summary: str = ""
     continuity_summary: str = ""
+    bridge_request_id: str = ""
+    prompt_sha256: str = ""
+    scope_id: str = ""
+    thread_id: str = ""
+    session_id: str = ""
+    cwd_source: str = ""
+    cwd_exists: Optional[bool] = None
 
     def inferred_phase(self) -> TaskPhase:
         """Infer phase from task_class if phase is still default EXECUTE."""
