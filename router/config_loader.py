@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from threading import Lock
 from types import MappingProxyType
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from .config_migration import migrate_config, CURRENT_CONFIG_VERSION
 from .model_registry import validate_config_models, check_model_deprecation
@@ -24,6 +24,12 @@ _config_snapshot: Optional[MappingProxyType] = None
 _config_raw: Optional[dict] = None  # mutable source for deep copies
 _config_lock = Lock()
 _active_config_path: Optional[Path] = None
+
+
+def _normalize_config_path(config_path: Optional[Union[Path, str]]) -> Optional[Path]:
+    if config_path is None:
+        return None
+    return Path(config_path).expanduser().resolve()
 
 
 def _restrict_permissions(path: Path) -> None:
@@ -87,7 +93,7 @@ def load_config(config_path: Optional[Path] = None) -> dict:
         if _config_snapshot is not None and config_path is None:
             return copy.deepcopy(_config_raw)
 
-    path = config_path or _get_config_path()
+    path = _normalize_config_path(config_path) or _get_config_path()
 
     with open(path) as f:
         config = json.load(f)
@@ -135,7 +141,7 @@ def reload_config(config_path: Optional[Path] = None) -> dict:
     with _config_lock:
         _config_snapshot = None
         _config_raw = None
-        _active_config_path = config_path
+        _active_config_path = _normalize_config_path(config_path)
 
     return load_config()
 

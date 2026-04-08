@@ -44,6 +44,14 @@ class RoutingTrace:
     chain_invariant_violated: bool = False
     chain_invariant_reason: Optional[str] = None
     timestamp: str = ""
+    bridge_request_id: str = ""
+    scope_id: str = ""
+    thread_id: str = ""
+    session_id: str = ""
+    cwd: str = ""
+    repo_path: str = ""
+    cwd_source: str = ""
+    cwd_exists: Optional[bool] = None
 
     def to_dict(self) -> dict:
         """Convert to dict for JSON serialization."""
@@ -60,6 +68,14 @@ class RoutingTrace:
             "final_tool": self.final_tool,
             "final_success": self.final_success,
             "timestamp": self.timestamp or datetime.now(timezone.utc).isoformat(),
+            "bridge_request_id": self.bridge_request_id,
+            "scope_id": self.scope_id,
+            "thread_id": self.thread_id,
+            "session_id": self.session_id,
+            "cwd": self.cwd,
+            "repo_path": self.repo_path,
+            "cwd_source": self.cwd_source,
+            "cwd_exists": self.cwd_exists,
         }
         if self.final_error:
             d["final_error"] = self.final_error
