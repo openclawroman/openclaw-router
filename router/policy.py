@@ -437,67 +437,67 @@ def route_task(task: TaskMeta) -> Tuple[RouteDecision, ExecutorResult]:
     is_first_executor = True
     error_history: List[dict] = []
 
-    if not task.cwd or task.cwd_exists is False:
-        error_history.append({
-            "tool": "router",
-            "backend": "validation",
-            "model_profile": "",
-            "error_type": "invalid_working_directory",
-            "error_message": _truncate_error_message(task.cwd or task.cwd_source or "<missing>"),
-        })
-        result = ExecutorResult(
-            task_id=task.task_id,
-            tool="router",
-            backend="validation",
-            model_profile="",
-            success=False,
-            normalized_error="invalid_working_directory",
-            trace_id=trace_id,
-            final_summary=f"Invalid working directory ({task.cwd_source or 'none'}): {task.cwd or '<missing>'}",
-            error_history=error_history,
-        )
-        total_latency = int((time.monotonic() - attempt_start) * 1000)
-        trace = RoutingTrace(
-            trace_id=trace_id,
-            task_id=task.task_id,
-            state=state.value,
-            chain=[{"tool": c.tool, "backend": c.backend, "model_profile": c.model_profile} for c in chain],
-            attempts=attempts,
-            providers_skipped=providers_skipped,
-            chain_timed_out=chain_timed_out,
-            fallback_count=fallback_count,
-            total_latency_ms=total_latency,
-            final_tool=result.tool,
-            final_success=False,
-            final_error=result.normalized_error,
-            chain_invariant_violated=not valid,
-            chain_invariant_reason=invariant_reason if not valid else None,
-            bridge_request_id=task.bridge_request_id,
-            scope_id=task.scope_id,
-            thread_id=task.thread_id,
-            session_id=task.session_id,
-            cwd=task.cwd,
-            repo_path=task.repo_path,
-            cwd_source=task.cwd_source,
-            cwd_exists=task.cwd_exists,
-        )
-        attempt_logger.log_trace(trace)
-        decision = RouteDecision(
-            task_id=task.task_id,
-            state=state.value,
-            chain=chain,
-            reason=f"state={state.value}, invalid cwd",
-            attempted_fallback=False,
-            trace_id=trace_id,
-            error_history=error_history,
-            phase=task.inferred_phase(),
-        )
-        return decision, result
-
     # Register task as in-flight
     shutdown_mgr.register_task(task.task_id, state_str, chain[0].tool if chain else "none")
 
     try:
+        if not task.cwd or task.cwd_exists is False:
+            error_history.append({
+                "tool": "router",
+                "backend": "validation",
+                "model_profile": "",
+                "error_type": "invalid_working_directory",
+                "error_message": _truncate_error_message(task.cwd or task.cwd_source or "<missing>"),
+            })
+            result = ExecutorResult(
+                task_id=task.task_id,
+                tool="router",
+                backend="validation",
+                model_profile="",
+                success=False,
+                normalized_error="invalid_working_directory",
+                trace_id=trace_id,
+                final_summary=f"Invalid working directory ({task.cwd_source or 'none'}): {task.cwd or '<missing>'}",
+                error_history=error_history,
+            )
+            total_latency = int((time.monotonic() - attempt_start) * 1000)
+            trace = RoutingTrace(
+                trace_id=trace_id,
+                task_id=task.task_id,
+                state=state.value,
+                chain=[{"tool": c.tool, "backend": c.backend, "model_profile": c.model_profile} for c in chain],
+                attempts=attempts,
+                providers_skipped=providers_skipped,
+                chain_timed_out=chain_timed_out,
+                fallback_count=fallback_count,
+                total_latency_ms=total_latency,
+                final_tool=result.tool,
+                final_success=False,
+                final_error=result.normalized_error,
+                chain_invariant_violated=not valid,
+                chain_invariant_reason=invariant_reason if not valid else None,
+                bridge_request_id=task.bridge_request_id,
+                scope_id=task.scope_id,
+                thread_id=task.thread_id,
+                session_id=task.session_id,
+                cwd=task.cwd,
+                repo_path=task.repo_path,
+                cwd_source=task.cwd_source,
+                cwd_exists=task.cwd_exists,
+            )
+            attempt_logger.log_trace(trace)
+            decision = RouteDecision(
+                task_id=task.task_id,
+                state=state.value,
+                chain=chain,
+                reason=f"state={state.value}, invalid cwd",
+                attempted_fallback=False,
+                trace_id=trace_id,
+                error_history=error_history,
+                phase=task.inferred_phase(),
+            )
+            return decision, result
+
         for entry in chain:
             # Check chain timeout
             elapsed = time.monotonic() - start_time

@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from router import ExecutorResult, RoutingLogger, TaskMeta, route_task
+from router.health import get_shutdown_manager
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -119,3 +120,26 @@ def test_routing_log_contains_trace_and_bridge_request_id(tmp_path, monkeypatch)
     assert entry["bridge_request_id"] == "bridge-123"
     assert entry["scope_id"] == "scope-1"
     assert entry["cwd_exists"] is True
+
+
+def test_invalid_cwd_does_not_leave_inflight_task(monkeypatch):
+    shutdown_mgr = get_shutdown_manager()
+    before = shutdown_mgr.get_status()["in_flight_count"]
+
+    monkeypatch.setattr("router.policy.AttemptLogger", lambda: MagicMock(log_trace=lambda trace: None))
+
+    task = TaskMeta(
+        task_id="task-invalid-bookkeeping",
+        repo_path="/definitely/missing/repo",
+        cwd="/definitely/missing/cwd",
+        summary="invalid bookkeeping task",
+        cwd_source="cwd",
+        cwd_exists=False,
+    )
+
+    decision, result = route_task(task)
+    after = shutdown_mgr.get_status()["in_flight_count"]
+
+    assert result.normalized_error == "invalid_working_directory"
+    assert decision.reason.endswith("invalid cwd")
+    assert after == before
